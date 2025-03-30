@@ -1,0 +1,82 @@
+@startuml Kirala Use Case Diagram
+
+left to right direction
+
+actor "Kullanıcı" as user
+actor "Admin" as admin
+actor "Sistem" as system
+
+rectangle "Kirala" {
+  ' Kullanıcı Use Cases
+  usecase "Giriş Yapma" as UC21
+  usecase "Kayıt Olma" as UC22
+  usecase "Ürün Arama" as UC1
+  usecase "Ürün Detay Görüntüleme" as UC2
+  usecase "Ürün Kiralama" as UC3
+  usecase "Sepete Ürün Ekleme" as UC4
+  usecase "Ödeme Yapma" as UC5
+  usecase "Sipariş Takibi" as UC6
+  usecase "Değerlendirme Yapma" as UC7
+  usecase "Favorilere Ekleme" as UC8
+  usecase "Mesajlaşma" as UC9
+  usecase "Profil Yönetimi" as UC10
+  usecase "Ayarları Düzenleme" as UC11
+
+  ' Admin Use Cases
+  usecase "Ürün Yönetimi" as UC12
+  usecase "Kullanıcı Yönetimi" as UC13
+  usecase "Kiralama Yönetimi" as UC14
+  usecase "Ödeme Yönetimi" as UC15
+  usecase "İçerik Yönetimi" as UC16
+  usecase "Raporlama" as UC17
+
+  ' Sistem Use Cases
+  usecase "Bildirim Gönderme" as UC18
+  usecase "Stok Kontrolü" as UC19
+  usecase "Ödeme Doğrulama" as UC20
+  usecase "Kimlik Doğrulama" as UC23
+}
+
+' Kullanıcı İlişkileri
+user --> UC21
+user --> UC22
+user --> UC1
+user --> UC2
+user --> UC3
+user --> UC4
+user --> UC5
+user --> UC6
+user --> UC7
+user --> UC8
+user --> UC9
+user --> UC10
+user --> UC11
+
+' Admin İlişkileri
+admin --> UC12
+admin --> UC13
+admin --> UC14
+admin --> UC15
+admin --> UC16
+admin --> UC17
+
+' Sistem İlişkileri
+system --> UC18
+system --> UC19
+system --> UC20
+system --> UC23
+
+' Include İlişkileri
+UC3 ..> UC4 : includes
+UC3 ..> UC5 : includes
+UC3 ..> UC19 : includes
+UC5 ..> UC20 : includes
+UC6 ..> UC18 : includes
+UC21 ..> UC23 : includes
+UC22 ..> UC23 : includes
+
+' Extend İlişkileri
+UC2 ..> UC7 : extends
+UC2 ..> UC8 : extends
+
+@enduml 

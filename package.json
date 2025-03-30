@@ -1,0 +1,23 @@
+{
+  "name": "kirala",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "cd src/frontend && npm start",
+    "start:frontend": "cd src/frontend && npm start",
+    "start:backend": "cd src/backend && npm start",
+    "dev": "concurrently \"npm run start:frontend\" \"npm run start:backend\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "pg": "^8.14.1"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "description": ""
+}
