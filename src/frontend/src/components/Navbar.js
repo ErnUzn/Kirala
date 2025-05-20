@@ -11,62 +11,60 @@ import {
   Button,
   Tooltip,
   MenuItem,
-  Divider,
+  ListItemIcon,
 } from '@mui/material';
-import { Link, useNavigate } from 'react-router-dom';
-import MenuIcon from '@mui/icons-material/Menu';
-import AdbIcon from '@mui/icons-material/Adb';
+import {
+  Menu as MenuIcon,
+  Person as PersonIcon,
+  Favorite as FavoriteIcon,
+  ShoppingCart as ShoppingCartIcon,
+  Settings as SettingsIcon,
+  Logout as LogoutIcon,
+  Login as LoginIcon,
+  PersonAdd as PersonAddIcon,
+} from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 const pages = [
+  { name: 'Anasayfa', path: '/' },
   { name: 'Ürünler', path: '/products' },
-  { name: 'Kategoriler', path: '/categories' },
   { name: 'Arama', path: '/search' },
-  { name: 'Kiralama Geçmişi', path: '/rental-history' },
-  { name: 'Sık Sorulan Sorular', path: '/faq' },
-  { name: 'İletişim', path: '/contact' }
+  { name: 'İletişim', path: '/contact' },
 ];
-const settings = ['Profil', 'Favoriler', 'Çıkış Yap'];
 
-function Navbar() {
+const Navbar = () => {
   const navigate = useNavigate();
   const [anchorElNav, setAnchorElNav] = useState(null);
   const [anchorElUser, setAnchorElUser] = useState(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [user, setUser] = useState(null);
 
   useEffect(() => {
-    // LocalStorage'dan kullanıcı bilgisini al
-    const checkUser = () => {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        setUser(JSON.parse(storedUser));
-      } else {
-        setUser(null);
-      }
+    // Sayfa yüklendiğinde ve kullanıcı durumu değiştiğinde kontrol et
+    checkAuthStatus();
+
+    // Kullanıcı durumu değişikliğini dinle
+    window.addEventListener('userStateChange', checkAuthStatus);
+    return () => {
+      window.removeEventListener('userStateChange', checkAuthStatus);
     };
-
-    // İlk yüklemede kontrol et
-    checkUser();
-
-    // Kullanıcı durumu değişikliklerini dinle
-    const handleUserChange = () => {
-      checkUser();
-    };
-
-    window.addEventListener('userStateChange', handleUserChange);
-    return () => window.removeEventListener('userStateChange', handleUserChange);
   }, []);
 
-  // Component mount olduğunda kullanıcı durumunu kontrol et
-  useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  const checkAuthStatus = () => {
+    const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
+    setIsLoggedIn(loggedIn);
+    if (loggedIn) {
+      const userData = JSON.parse(localStorage.getItem('user'));
+      setUser(userData);
+    } else {
+      setUser(null);
     }
-  }, []);
+  };
 
   const handleOpenNavMenu = (event) => {
     setAnchorElNav(event.currentTarget);
   };
+
   const handleOpenUserMenu = (event) => {
     setAnchorElUser(event.currentTarget);
   };
@@ -79,39 +77,43 @@ function Navbar() {
     setAnchorElUser(null);
   };
 
-  const handlePageClick = (path) => {
-    handleCloseNavMenu();
+  const handleMenuClick = (path) => {
     navigate(path);
+    handleCloseNavMenu();
   };
 
-  const handleSettingClick = (setting) => {
+  const handleLogout = () => {
+    localStorage.removeItem('user');
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('token');
+    setIsLoggedIn(false);
+    setUser(null);
+    navigate('/');
     handleCloseUserMenu();
-    
-    switch (setting) {
-      case 'Profil':
-        navigate('/profile');
-        break;
-      case 'Favoriler':
-        navigate('/favorites');
-        break;
-      case 'Çıkış Yap':
-        // LocalStorage'dan kullanıcı bilgilerini temizle
-        localStorage.removeItem('user');
-        localStorage.removeItem('token');
-        // Kullanıcı durumu değişikliğini tetikle
-        window.dispatchEvent(new Event('userStateChange'));
-        navigate('/');
-        break;
-      default:
-        break;
-    }
   };
 
   return (
-    <AppBar position="static">
+    <AppBar position="fixed">
       <Container maxWidth="xl">
         <Toolbar disableGutters>
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <Typography
+            variant="h6"
+            noWrap
+            component="a"
+            href="/"
+            sx={{
+              mr: 2,
+              display: { xs: 'none', md: 'flex' },
+              fontFamily: 'monospace',
+              fontWeight: 700,
+              color: 'inherit',
+              textDecoration: 'none',
+            }}
+          >
+            KIRALA
+          </Typography>
+
+          <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }}>
             <IconButton
               size="large"
               aria-label="menu"
@@ -119,7 +121,6 @@ function Navbar() {
               aria-haspopup="true"
               onClick={handleOpenNavMenu}
               color="inherit"
-              edge="start"
             >
               <MenuIcon />
             </IconButton>
@@ -137,9 +138,15 @@ function Navbar() {
               }}
               open={Boolean(anchorElNav)}
               onClose={handleCloseNavMenu}
+              sx={{
+                display: { xs: 'block', md: 'none' },
+              }}
             >
               {pages.map((page) => (
-                <MenuItem key={page.name} onClick={() => handlePageClick(page.path)}>
+                <MenuItem
+                  key={page.name}
+                  onClick={() => handleMenuClick(page.path)}
+                >
                   <Typography textAlign="center">{page.name}</Typography>
                 </MenuItem>
               ))}
@@ -147,29 +154,55 @@ function Navbar() {
           </Box>
 
           <Typography
-            variant="h6"
+            variant="h5"
             noWrap
-            component={Link}
-            to="/"
+            component="a"
+            href="/"
             sx={{
+              mr: 2,
+              display: { xs: 'flex', md: 'none' },
               flexGrow: 1,
               fontFamily: 'monospace',
               fontWeight: 700,
-              letterSpacing: '.3rem',
               color: 'inherit',
               textDecoration: 'none',
-              textAlign: 'center',
             }}
           >
-            KİRALA
+            KIRALA
           </Typography>
 
+          <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }}>
+            {pages.map((page) => (
+              <Button
+                key={page.name}
+                onClick={() => handleMenuClick(page.path)}
+                sx={{ my: 2, color: 'white', display: 'block' }}
+              >
+                {page.name}
+              </Button>
+            ))}
+          </Box>
+
           <Box sx={{ flexGrow: 0 }}>
-            {user ? (
+            {isLoggedIn ? (
               <>
-                <Tooltip title="Ayarları aç">
+                <IconButton
+                  onClick={() => navigate('/favorites')}
+                  sx={{ color: 'white', mr: 1 }}
+                >
+                  <FavoriteIcon />
+                </IconButton>
+                <IconButton
+                  onClick={() => navigate('/orders')}
+                  sx={{ color: 'white', mr: 2 }}
+                >
+                  <ShoppingCartIcon />
+                </IconButton>
+                <Tooltip title="Hesap işlemleri">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar alt={user.name} src="/static/images/avatar/2.jpg" />
+                    <Avatar alt={user?.firstName}>
+                      {user?.firstName?.charAt(0)}
+                    </Avatar>
                   </IconButton>
                 </Tooltip>
                 <Menu
@@ -188,27 +221,55 @@ function Navbar() {
                   open={Boolean(anchorElUser)}
                   onClose={handleCloseUserMenu}
                 >
-                  {settings.map((setting) => (
-                    <MenuItem key={setting} onClick={() => handleSettingClick(setting)}>
-                      <Typography textAlign="center">{setting}</Typography>
-                    </MenuItem>
-                  ))}
+                  <MenuItem onClick={() => {
+                    navigate('/profile');
+                    handleCloseUserMenu();
+                  }}>
+                    <ListItemIcon>
+                      <PersonIcon fontSize="small" />
+                    </ListItemIcon>
+                    <Typography textAlign="center">Profilim</Typography>
+                  </MenuItem>
+                  <MenuItem onClick={() => {
+                    navigate('/settings');
+                    handleCloseUserMenu();
+                  }}>
+                    <ListItemIcon>
+                      <SettingsIcon fontSize="small" />
+                    </ListItemIcon>
+                    <Typography textAlign="center">Ayarlar</Typography>
+                  </MenuItem>
+                  <MenuItem onClick={handleLogout}>
+                    <ListItemIcon>
+                      <LogoutIcon fontSize="small" />
+                    </ListItemIcon>
+                    <Typography textAlign="center">Çıkış Yap</Typography>
+                  </MenuItem>
                 </Menu>
               </>
             ) : (
-              <Button
-                component={Link}
-                to="/login"
-                sx={{ color: 'white' }}
-              >
-                Giriş Yap
-              </Button>
+              <>
+                <Button
+                  onClick={() => navigate('/login')}
+                  sx={{ color: 'white', mr: 1 }}
+                  startIcon={<LoginIcon />}
+                >
+                  Giriş Yap
+                </Button>
+                <Button
+                  onClick={() => navigate('/register')}
+                  sx={{ color: 'white' }}
+                  startIcon={<PersonAddIcon />}
+                >
+                  Kayıt Ol
+                </Button>
+              </>
             )}
           </Box>
         </Toolbar>
       </Container>
     </AppBar>
   );
-}
+};
 
 export default Navbar; 

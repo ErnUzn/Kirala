@@ -35,7 +35,8 @@ function Profile() {
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [editData, setEditData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
     phone: '',
   });
@@ -90,6 +91,8 @@ function Profile() {
     return <div>Loading...</div>;
   }
 
+  const fullName = `${user.firstName} ${user.lastName}`;
+
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
       <Paper elevation={3} sx={{ p: 4 }}>
@@ -102,11 +105,11 @@ function Profile() {
               fontSize: '3rem',
             }}
           >
-            {user.name.charAt(0).toUpperCase()}
+            {user.firstName.charAt(0).toUpperCase()}
           </Avatar>
           <Box sx={{ ml: 3 }}>
             <Typography variant="h4" gutterBottom>
-              {user.name}
+              {fullName}
             </Typography>
             <Typography variant="body1" color="text.secondary">
               Üye
@@ -119,12 +122,24 @@ function Profile() {
         {editMode ? (
           <Box component="form" sx={{ mt: 3 }}>
             <Grid container spacing={3}>
-              <Grid item xs={12}>
+              <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Ad Soyad"
-                  name="name"
-                  value={editData.name}
+                  label="Ad"
+                  name="firstName"
+                  value={editData.firstName}
+                  onChange={handleChange}
+                  InputProps={{
+                    startAdornment: <Person sx={{ mr: 1, color: 'text.secondary' }} />,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Soyad"
+                  name="lastName"
+                  value={editData.lastName}
                   onChange={handleChange}
                   InputProps={{
                     startAdornment: <Person sx={{ mr: 1, color: 'text.secondary' }} />,
@@ -148,7 +163,7 @@ function Profile() {
                   fullWidth
                   label="Telefon"
                   name="phone"
-                  value={editData.phone}
+                  value={editData.phone || ''}
                   onChange={handleChange}
                   InputProps={{
                     startAdornment: <Phone sx={{ mr: 1, color: 'text.secondary' }} />,
@@ -184,7 +199,7 @@ function Profile() {
                 </ListItemIcon>
                 <ListItemText
                   primary="Ad Soyad"
-                  secondary={user.name}
+                  secondary={fullName}
                 />
               </ListItem>
               <ListItem>
@@ -202,7 +217,7 @@ function Profile() {
                 </ListItemIcon>
                 <ListItemText
                   primary="Telefon"
-                  secondary={user.phone}
+                  secondary={user.phone || 'Belirtilmemiş'}
                 />
               </ListItem>
             </List>

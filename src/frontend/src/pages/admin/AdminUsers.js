@@ -54,38 +54,51 @@ const AdminUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      // TODO: API çağrısı yapılacak
-      // Simüle edilmiş veri
-      setUsers([
+      // Tutarlı kullanıcı verileri
+      const adminUsers = [
         {
           id: 1,
           name: 'Ahmet Yılmaz',
           email: 'ahmet@example.com',
-          phone: '555-0001',
+          phone: '5551234567',
           role: 'user',
-          status: true,
-          joinDate: '2024-01-15',
+          joinDate: '2023-01-15',
         },
         {
           id: 2,
           name: 'Ayşe Demir',
           email: 'ayse@example.com',
-          phone: '555-0002',
+          phone: '5552345678',
           role: 'user',
-          status: true,
-          joinDate: '2024-02-01',
+          joinDate: '2023-02-20',
         },
         {
           id: 3,
           name: 'Mehmet Kaya',
           email: 'mehmet@example.com',
-          phone: '555-0003',
-          role: 'admin',
-          status: true,
-          joinDate: '2024-02-15',
+          phone: '5553456789',
+          role: 'user',
+          joinDate: '2023-03-10',
         },
-      ]);
-
+        {
+          id: 4,
+          name: 'Zeynep Şahin',
+          email: 'zeynep@example.com',
+          phone: '5554567890',
+          role: 'user',
+          joinDate: '2023-04-05',
+        },
+        {
+          id: 5,
+          name: 'Admin User',
+          email: 'admin@example.com',
+          phone: '5555678901',
+          role: 'admin',
+          joinDate: '2023-01-01',
+        }
+      ];
+      
+      setUsers(adminUsers);
       setLoading(false);
     } catch (error) {
       console.error('Kullanıcılar alınamadı:', error);

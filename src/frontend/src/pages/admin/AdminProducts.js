@@ -19,6 +19,7 @@ import {
   TextField,
   Typography,
   CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -27,14 +28,18 @@ import {
   Search as SearchIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import axios from 'axios';
 
 const SearchField = styled(TextField)(({ theme }) => ({
   marginBottom: theme.spacing(2),
 }));
 
+const API_URL = 'http://localhost:5000/api';
+
 const AdminProducts = () => {
   const [loading, setLoading] = useState(true);
-  const [products, setProducts] = useState([]);
+  const [error, setError] = useState(null);
+  const [adminProducts, setAdminProducts] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [formData, setFormData] = useState({
@@ -43,6 +48,9 @@ const AdminProducts = () => {
     price: '',
     category: '',
     stock: '',
+    image: '',
+    location: '',
+    condition: '',
   });
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -52,38 +60,14 @@ const AdminProducts = () => {
 
   const fetchProducts = async () => {
     try {
-      // TODO: API çağrısı yapılacak
-      // Simüle edilmiş veri
-      setProducts([
-        {
-          id: 1,
-          name: 'Profesyonel Kamera',
-          description: 'Yüksek çözünürlüklü profesyonel fotoğraf makinesi',
-          price: 500,
-          category: 'Fotoğraf',
-          stock: 5,
-        },
-        {
-          id: 2,
-          name: 'Drone',
-          description: '4K kameralı profesyonel drone',
-          price: 1000,
-          category: 'Video',
-          stock: 3,
-        },
-        {
-          id: 3,
-          name: 'GoPro Kamera',
-          description: 'Su geçirmez aksiyon kamerası',
-          price: 300,
-          category: 'Video',
-          stock: 8,
-        },
-      ]);
-
-      setLoading(false);
+      setLoading(true);
+      const response = await axios.get(`${API_URL}/items`);
+      setAdminProducts(response.data);
+      setError(null);
     } catch (error) {
       console.error('Ürünler alınamadı:', error);
+      setError('Ürünler yüklenirken bir hata oluştu');
+    } finally {
       setLoading(false);
     }
   };
@@ -100,6 +84,9 @@ const AdminProducts = () => {
         price: '',
         category: '',
         stock: '',
+        image: '',
+        location: '',
+        condition: '',
       });
     }
     setOpenDialog(true);
@@ -114,48 +101,51 @@ const AdminProducts = () => {
       price: '',
       category: '',
       stock: '',
+      image: '',
+      location: '',
+      condition: '',
     });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // TODO: API çağrısı yapılacak
       if (selectedProduct) {
-        // Ürün güncelleme
-        setProducts(
-          products.map((product) =>
-            product.id === selectedProduct.id ? formData : product
+        const response = await axios.put(
+          `${API_URL}/items/${selectedProduct.id}`,
+          formData
+        );
+        setAdminProducts(
+          adminProducts.map((product) =>
+            product.id === selectedProduct.id ? response.data : product
           )
         );
       } else {
-        // Yeni ürün ekleme
-        setProducts([
-          ...products,
-          {
-            id: products.length + 1,
-            ...formData,
-          },
-        ]);
+        const response = await axios.post(`${API_URL}/items`, formData);
+        setAdminProducts([...adminProducts, response.data]);
       }
       handleCloseDialog();
+      setError(null);
     } catch (error) {
       console.error('Ürün kaydedilemedi:', error);
+      setError('Ürün kaydedilirken bir hata oluştu');
     }
   };
 
   const handleDelete = async (productId) => {
     if (window.confirm('Bu ürünü silmek istediğinizden emin misiniz?')) {
       try {
-        // TODO: API çağrısı yapılacak
-        setProducts(products.filter((product) => product.id !== productId));
+        await axios.delete(`${API_URL}/items/${productId}`);
+        setAdminProducts(adminProducts.filter((product) => product.id !== productId));
+        setError(null);
       } catch (error) {
         console.error('Ürün silinemedi:', error);
+        setError('Ürün silinirken bir hata oluştu');
       }
     }
   };
 
-  const filteredProducts = products.filter((product) =>
+  const filteredProducts = adminProducts.filter((product) =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -190,6 +180,12 @@ const AdminProducts = () => {
           Yeni Ürün
         </Button>
       </Box>
+
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
       <SearchField
         fullWidth
@@ -304,6 +300,33 @@ const AdminProducts = () => {
               }
               margin="normal"
               required
+            />
+            <TextField
+              fullWidth
+              label="Görsel URL"
+              value={formData.image}
+              onChange={(e) =>
+                setFormData({ ...formData, image: e.target.value })
+              }
+              margin="normal"
+            />
+            <TextField
+              fullWidth
+              label="Konum"
+              value={formData.location}
+              onChange={(e) =>
+                setFormData({ ...formData, location: e.target.value })
+              }
+              margin="normal"
+            />
+            <TextField
+              fullWidth
+              label="Durum"
+              value={formData.condition}
+              onChange={(e) =>
+                setFormData({ ...formData, condition: e.target.value })
+              }
+              margin="normal"
             />
           </DialogContent>
           <DialogActions>

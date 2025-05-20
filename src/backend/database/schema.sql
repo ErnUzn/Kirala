@@ -115,26 +115,20 @@ CREATE TABLE categories (
 );
 
 -- 9. Eşyalar (items)
-CREATE TABLE items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    owner_id UUID REFERENCES users(id),
-    category_id UUID REFERENCES categories(id),
-    title VARCHAR(255) NOT NULL,
-    description TEXT,
-    condition item_condition NOT NULL,
-    daily_price DECIMAL(10,2) NOT NULL,
-    weekly_discount_percentage INTEGER DEFAULT 0,
-    monthly_discount_percentage INTEGER DEFAULT 0,
-    min_rental_days INTEGER DEFAULT 1,
-    max_rental_days INTEGER DEFAULT 30,
-    deposit_amount DECIMAL(10,2) DEFAULT 0,
-    is_available BOOLEAN DEFAULT TRUE,
-    views_count INTEGER DEFAULT 0,
-    rating DECIMAL(3,2) DEFAULT 0,
-    created_by UUID REFERENCES users(id),
-    updated_by UUID REFERENCES users(id),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS items (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  price DECIMAL(10,2) NOT NULL,
+  category VARCHAR(100) NOT NULL,
+  stock INTEGER NOT NULL DEFAULT 0,
+  image VARCHAR(255),
+  location VARCHAR(255),
+  condition VARCHAR(50),
+  rating DECIMAL(3,2) DEFAULT 0,
+  review_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 10. Eşya Fotoğrafları (item_images)

@@ -11,8 +11,6 @@ import {
   Rating,
   IconButton,
   Stack,
-  Snackbar,
-  Alert,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import {
@@ -44,9 +42,6 @@ const ProductDetail = () => {
   });
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [snackbarSeverity, setSnackbarSeverity] = useState('success');
 
   // Ürün verisini ID'ye göre getir
   useEffect(() => {
@@ -124,66 +119,6 @@ const ProductDetail = () => {
 
   const handleDurationSelect = (days) => {
     setSelectedDuration(days);
-  };
-
-  const handleRent = () => {
-    // Kullanıcı giriş yapmış mı kontrol et
-    const storedUser = localStorage.getItem('user');
-    
-    if (!storedUser) {
-      setSnackbarMessage('Kiralama yapmak için giriş yapmalısınız');
-      setSnackbarSeverity('warning');
-      setSnackbarOpen(true);
-      return;
-    }
-    
-    // Bugünün tarihini al
-    const today = new Date();
-    
-    // Bitiş tarihini hesapla
-    const endDate = new Date(today);
-    endDate.setDate(today.getDate() + selectedDuration);
-    
-    // Tarih formatını YYYY-MM-DD olarak ayarla
-    const formatDate = (date) => {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      return `${year}-${month}-${day}`;
-    };
-    
-    // Kiralama nesnesi oluştur
-    const rentalItem = {
-      id: Date.now(), // benzersiz bir ID
-      productId: product.id,
-      startDate: formatDate(today),
-      endDate: formatDate(endDate),
-      status: 'Devam Ediyor',
-      totalPrice: `${product.priceNumeric * selectedDuration}₺`
-    };
-    
-    // Mevcut kiralama geçmişini localStorage'dan al
-    const rentalHistory = localStorage.getItem('rentalHistory');
-    let updatedHistory = [];
-    
-    if (rentalHistory) {
-      updatedHistory = JSON.parse(rentalHistory);
-    }
-    
-    // Yeni kiralamayı geçmişe ekle
-    updatedHistory.push(rentalItem);
-    
-    // Güncellenen geçmişi localStorage'a kaydet
-    localStorage.setItem('rentalHistory', JSON.stringify(updatedHistory));
-    
-    // Başarılı mesajı göster
-    setSnackbarMessage('Kiralama işlemi başarıyla tamamlandı');
-    setSnackbarSeverity('success');
-    setSnackbarOpen(true);
-  };
-  
-  const handleCloseSnackbar = () => {
-    setSnackbarOpen(false);
   };
 
   // Ürün yükleniyor veya bulunamadı
@@ -313,27 +248,11 @@ const ProductDetail = () => {
             color="primary"
             size="large"
             fullWidth
-            onClick={handleRent}
           >
             Kirala
           </Button>
         </Grid>
       </Grid>
-      
-      <Snackbar 
-        open={snackbarOpen} 
-        autoHideDuration={6000} 
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity={snackbarSeverity} 
-          sx={{ width: '100%' }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
     </Container>
   );
 };

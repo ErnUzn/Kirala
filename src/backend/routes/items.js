@@ -17,13 +17,13 @@ router.get('/', itemController.getAllItems);
 router.get('/:id', itemController.getItemById);
 
 // Ürün ekleme
-router.post('/', auth, validate(itemSchemas.create), itemController.createItem);
+router.post('/', itemController.createItem);
 
 // Ürün güncelleme
-router.put('/:id', auth, validate(itemSchemas.update), itemController.updateItem);
+router.put('/:id', itemController.updateItem);
 
 // Ürün silme
-router.delete('/:id', auth, itemController.deleteItem);
+router.delete('/:id', itemController.deleteItem);
 
 // Ürün fotoğrafı ekleme
 router.post('/:id/photos', auth, itemController.addItemPhotos);

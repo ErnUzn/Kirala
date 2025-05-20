@@ -19,7 +19,11 @@ const app = express();
 
 // Middleware'leri yapılandır
 app.use(helmet()); // Güvenlik başlıkları
-app.use(cors()); // CORS desteği
+app.use(cors({
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+})); // CORS desteği
 app.use(compression()); // Sıkıştırma
 app.use(morgan('dev')); // Loglama
 app.use(express.json()); // JSON body parser

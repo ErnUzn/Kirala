@@ -12,8 +12,7 @@ import {
   Stack,
   Paper,
   Alert,
-  Button,
-  Snackbar
+  Button
 } from '@mui/material';
 import {
   LocationOn,
@@ -29,8 +28,6 @@ const RentalHistory = () => {
   const [user, setUser] = useState(null);
   const [rentalHistory, setRentalHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
 
   useEffect(() => {
     // Kullanıcı bilgilerini local storage'dan al
@@ -39,55 +36,46 @@ const RentalHistory = () => {
       setUser(JSON.parse(storedUser));
     }
 
-    // LocalStorage'dan kiralama geçmişini al
-    const storedHistory = localStorage.getItem('rentalHistory');
-    
-    if (storedHistory) {
-      const history = JSON.parse(storedHistory);
-      // Kiralama durumlarını güncelle
-      const updatedHistory = updateRentalStatuses(history);
-      setRentalHistory(updatedHistory);
-      
-      // Eğer durumlar güncellendiyse localStorage'ı da güncelle
-      if (JSON.stringify(updatedHistory) !== JSON.stringify(history)) {
-        localStorage.setItem('rentalHistory', JSON.stringify(updatedHistory));
+    // Simüle edilmiş kiralama geçmişi verisi (gerçek uygulamada API'den alınacak)
+    const simulatedHistory = [
+      {
+        id: 1,
+        productId: 1,
+        startDate: '2023-06-10',
+        endDate: '2023-06-15',
+        status: 'Tamamlandı',
+        totalPrice: '1250₺'
+      },
+      {
+        id: 2,
+        productId: 8,
+        startDate: '2023-07-20',
+        endDate: '2023-07-25',
+        status: 'Tamamlandı',
+        totalPrice: '3500₺'
+      },
+      {
+        id: 3,
+        productId: 5,
+        startDate: '2023-08-05',
+        endDate: '2023-08-10',
+        status: 'Devam Ediyor',
+        totalPrice: '1750₺'
+      },
+      {
+        id: 4,
+        productId: 13,
+        startDate: '2023-09-15',
+        startDate: '2023-09-15',
+        endDate: '2023-09-20',
+        status: 'Yaklaşan',
+        totalPrice: '850₺'
       }
-    } else {
-      // Eğer localStorage'da kiralama geçmişi yoksa boş dizi olarak ayarla
-      setRentalHistory([]);
-    }
-    
+    ];
+
+    setRentalHistory(simulatedHistory);
     setLoading(false);
   }, []);
-
-  // Kiralama durumlarını güncelle
-  const updateRentalStatuses = (rentals) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Saat bilgisini sıfırla, sadece tarihleri karşılaştır
-    
-    return rentals.map(rental => {
-      // Eğer kiralama iptal edildiyse durumu değiştirme
-      if (rental.status === 'İptal Edildi') {
-        return rental;
-      }
-      
-      const startDate = new Date(rental.startDate);
-      const endDate = new Date(rental.endDate);
-      
-      // Bugün bitiş tarihinden sonraysa kiralama tamamlanmış demektir
-      if (today > endDate) {
-        return { ...rental, status: 'Tamamlandı' };
-      }
-      // Bugün başlangıç tarihinden önceyse kiralama yaklaşan demektir
-      else if (today < startDate) {
-        return { ...rental, status: 'Yaklaşan' };
-      }
-      // Bugün başlangıç ve bitiş tarihleri arasındaysa kiralama devam ediyor demektir
-      else {
-        return { ...rental, status: 'Devam Ediyor' };
-      }
-    });
-  };
 
   // Tarih formatını düzenle: YYYY-MM-DD -> DD.MM.YYYY
   const formatDate = (dateString) => {
@@ -108,32 +96,6 @@ const RentalHistory = () => {
       case 'Yaklaşan': return 'warning';
       default: return 'default';
     }
-  };
-
-  // Kiralamayı iptal et
-  const handleCancelRental = (rentalId) => {
-    // Mevcut kiralama geçmişini al
-    const currentHistory = [...rentalHistory];
-    
-    // İptal edilecek kiralamayı bul ve durumunu güncelle
-    const updatedHistory = currentHistory.map(rental => {
-      if (rental.id === rentalId) {
-        return { ...rental, status: 'İptal Edildi' };
-      }
-      return rental;
-    });
-    
-    // Güncellenmiş geçmişi state'e ve localStorage'a kaydet
-    setRentalHistory(updatedHistory);
-    localStorage.setItem('rentalHistory', JSON.stringify(updatedHistory));
-    
-    // Başarılı mesajı göster
-    setSnackbarMessage('Kiralama başarıyla iptal edildi');
-    setSnackbarOpen(true);
-  };
-  
-  const handleCloseSnackbar = () => {
-    setSnackbarOpen(false);
   };
 
   if (!user) {
@@ -238,26 +200,12 @@ const RentalHistory = () => {
                           <Typography variant="h6" color="primary">
                             Toplam: {rental.totalPrice}
                           </Typography>
-                          <Box>
-                            <Button 
-                              variant="outlined" 
-                              onClick={() => handleViewProduct(product.id)}
-                              sx={{ mr: 1 }}
-                            >
-                              Ürün Detayları
-                            </Button>
-                            
-                            {/* Tamamlanmış veya iptal edilmiş kiralamalar için iptal butonu gösterme */}
-                            {rental.status !== 'Tamamlandı' && rental.status !== 'İptal Edildi' && (
-                              <Button 
-                                variant="outlined" 
-                                color="error"
-                                onClick={() => handleCancelRental(rental.id)}
-                              >
-                                İptal Et
-                              </Button>
-                            )}
-                          </Box>
+                          <Button 
+                            variant="outlined" 
+                            onClick={() => handleViewProduct(product.id)}
+                          >
+                            Ürün Detayları
+                          </Button>
                         </Box>
                       </CardContent>
                     </Grid>
@@ -268,21 +216,6 @@ const RentalHistory = () => {
           })}
         </Grid>
       )}
-      
-      <Snackbar 
-        open={snackbarOpen} 
-        autoHideDuration={6000} 
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={handleCloseSnackbar} 
-          severity="success" 
-          sx={{ width: '100%' }}
-        >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
     </Container>
   );
 };

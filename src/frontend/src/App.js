@@ -1,11 +1,12 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 
 // Components
 import Navbar from './components/Navbar';
+import AdminLayout from './components/admin/AdminLayout';
 
 // Pages
 import Home from './pages/Home';
@@ -27,6 +28,14 @@ import Products from './pages/Products';
 import Contact from './pages/Contact';
 import FAQ from './pages/FAQ';
 import RentalHistory from './pages/RentalHistory';
+
+// Admin Pages
+import AdminLogin from './pages/admin/AdminLogin';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminProducts from './pages/admin/AdminProducts';
+import AdminUsers from './pages/admin/AdminUsers';
+import AdminOrders from './pages/admin/AdminOrders';
+import AdminSettings from './pages/admin/AdminSettings';
 
 // Theme
 const theme = createTheme({
@@ -69,6 +78,15 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/rental-history" element={<RentalHistory />} />
+
+              {/* Admin Routes */}
+              <Route path="/admin/login" element={<AdminLogin />} />
+              <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="/admin/dashboard" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+              <Route path="/admin/products" element={<AdminLayout><AdminProducts /></AdminLayout>} />
+              <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
+              <Route path="/admin/orders" element={<AdminLayout><AdminOrders /></AdminLayout>} />
+              <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
             </Routes>
           </Box>
         </Box>
