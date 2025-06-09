@@ -10,11 +10,10 @@ const Joi = require('joi');
 const userSchemas = {
   register: Joi.object({
     email: Joi.string().email().required(),
-    password: Joi.string().min(8).required(),
-    first_name: Joi.string().required(),
-    last_name: Joi.string().required(),
-    phone_number: Joi.string().pattern(/^[0-9]{10}$/),
-    date_of_birth: Joi.date().iso()
+    password: Joi.string().min(6).required(),
+    firstName: Joi.string().required(),
+    lastName: Joi.string().required(),
+    phone: Joi.string().optional()
   }),
 
   login: Joi.object({
@@ -23,60 +22,62 @@ const userSchemas = {
   }),
 
   update: Joi.object({
-    first_name: Joi.string(),
-    last_name: Joi.string(),
-    phone_number: Joi.string().pattern(/^[0-9]{10}$/),
-    date_of_birth: Joi.date().iso(),
-    profile_image_url: Joi.string().uri()
+    firstName: Joi.string().optional(),
+    lastName: Joi.string().optional(),
+    phone: Joi.string().optional()
   })
 };
 
 // Ürün şemaları
 const itemSchemas = {
   create: Joi.object({
-    category_id: Joi.string().uuid().required(),
-    title: Joi.string().required(),
-    description: Joi.string(),
-    condition: Joi.string().valid('Yeni', 'Çok İyi', 'İyi', 'Normal', 'Yıpranmış').required(),
-    daily_price: Joi.number().min(0).required(),
-    weekly_discount_percentage: Joi.number().min(0).max(100),
-    monthly_discount_percentage: Joi.number().min(0).max(100),
-    min_rental_days: Joi.number().min(1),
-    max_rental_days: Joi.number().min(1),
-    deposit_amount: Joi.number().min(0)
+    name: Joi.string().required(),
+    description: Joi.string().required(),
+    category: Joi.string().required(),
+    price: Joi.number().min(0).required(),
+    dailyPrice: Joi.number().min(0).required(),
+    weeklyPrice: Joi.number().min(0).required(),
+    monthlyPrice: Joi.number().min(0).required(),
+    condition: Joi.string().valid('new', 'like-new', 'good', 'fair').required(),
+    location: Joi.string().required(),
+    features: Joi.array().items(Joi.string()).optional(),
+    images: Joi.array().items(Joi.string()).optional()
   }),
 
   update: Joi.object({
-    category_id: Joi.string().uuid(),
-    title: Joi.string(),
-    description: Joi.string(),
-    condition: Joi.string().valid('Yeni', 'Çok İyi', 'İyi', 'Normal', 'Yıpranmış'),
-    daily_price: Joi.number().min(0),
-    weekly_discount_percentage: Joi.number().min(0).max(100),
-    monthly_discount_percentage: Joi.number().min(0).max(100),
-    min_rental_days: Joi.number().min(1),
-    max_rental_days: Joi.number().min(1),
-    deposit_amount: Joi.number().min(0),
-    is_available: Joi.boolean()
+    name: Joi.string().optional(),
+    description: Joi.string().optional(),
+    category: Joi.string().optional(),
+    price: Joi.number().min(0).optional(),
+    dailyPrice: Joi.number().min(0).optional(),
+    weeklyPrice: Joi.number().min(0).optional(),
+    monthlyPrice: Joi.number().min(0).optional(),
+    condition: Joi.string().valid('new', 'like-new', 'good', 'fair').optional(),
+    location: Joi.string().optional(),
+    features: Joi.array().items(Joi.string()).optional(),
+    images: Joi.array().items(Joi.string()).optional(),
+    status: Joi.string().valid('available', 'rented', 'maintenance').optional()
   })
 };
 
 // Kiralama şemaları
 const rentalSchemas = {
   create: Joi.object({
-    item_id: Joi.string().uuid().required(),
-    start_date: Joi.date().iso().required(),
-    end_date: Joi.date().iso().min(Joi.ref('start_date')).required(),
-    delivery_method: Joi.string().valid('Elden Teslim', 'Kurye', 'Kargo').required(),
-    delivery_notes: Joi.string(),
-    renter_address_id: Joi.string().uuid().required()
+    itemId: Joi.string().required(),
+    startDate: Joi.date().iso().required(),
+    endDate: Joi.date().iso().min(Joi.ref('startDate')).required(),
+    totalPrice: Joi.number().min(0).required(),
+    deliveryMethod: Joi.string().valid('Elden Teslim', 'Kurye', 'Kargo').optional(),
+    deliveryNotes: Joi.string().optional(),
+    notes: Joi.string().optional()
   }),
 
   update: Joi.object({
-    status: Joi.string().valid('Talep Edildi', 'Onaylandı', 'Reddedildi', 'İptal Edildi', 'Tamamlandı'),
-    payment_status: Joi.string().valid('Ödenmedi', 'Kısmi Ödendi', 'Ödendi', 'İade Edildi'),
-    delivery_notes: Joi.string(),
-    admin_notes: Joi.string()
+    status: Joi.string().valid('pending', 'active', 'completed', 'cancelled').optional(),
+    paymentStatus: Joi.string().valid('pending', 'paid', 'refunded').optional(),
+    deliveryNotes: Joi.string().optional(),
+    adminNotes: Joi.string().optional(),
+    notes: Joi.string().optional()
   })
 };
 
@@ -90,13 +91,12 @@ const validate = (schema) => {
 
     if (error) {
       const errorMessage = error.details.map(detail => detail.message);
-      const validationError = new Error('Geçersiz veri formatı');
-      validationError.name = 'ValidationError';
-      validationError.details = errorMessage;
-      next(validationError);
-    } else {
-      next();
+      return res.status(400).json({
+        message: 'Geçersiz veri formatı',
+        errors: errorMessage
+      });
     }
+    next();
   };
 };
 

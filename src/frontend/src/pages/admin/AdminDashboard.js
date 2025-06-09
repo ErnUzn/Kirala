@@ -19,6 +19,7 @@ import {
   ListItemIcon,
   Divider,
 } from '@mui/material';
+import { getDashboardStats, getRecentActivity } from '../../services/adminService';
 import {
   TrendingUp as TrendingUpIcon,
   People as PeopleIcon,
@@ -68,41 +69,31 @@ const AdminDashboard = () => {
 
   const fetchDashboardData = async () => {
     try {
-      // TODO: API çağrısı yapılacak
-      // Simüle edilmiş veri
+      // Gerçek API çağrıları
+      const statsData = await getDashboardStats();
+      const activityData = await getRecentActivity();
+      
       setStats({
-        totalRevenue: 25000,
-        totalUsers: 150,
-        totalProducts: 75,
-        activeRentals: 45,
+        totalRevenue: statsData.totalRevenue || 0,
+        totalUsers: statsData.totalUsers || 0,
+        totalProducts: statsData.totalItems || 0,
+        activeRentals: statsData.activeRentals || 0,
       });
 
-      setRecentRentals([
-        {
-          id: 1,
-          product: 'Profesyonel Kamera',
-          user: 'Ahmet Yılmaz',
-          startDate: '2024-03-15',
-          endDate: '2024-03-20',
-          status: 'Aktif',
-        },
-        {
-          id: 2,
-          product: 'Drone',
-          user: 'Ayşe Demir',
-          startDate: '2024-03-14',
-          endDate: '2024-03-18',
-          status: 'Aktif',
-        },
-        {
-          id: 3,
-          product: 'GoPro Kamera',
-          user: 'Mehmet Kaya',
-          startDate: '2024-03-13',
-          endDate: '2024-03-17',
-          status: 'Tamamlandı',
-        },
-      ]);
+      // Son kiralamaları formatla
+      if (activityData.recentRentals) {
+        const formattedRentals = activityData.recentRentals.map(rental => ({
+          id: rental._id,
+          product: rental.item?.name || 'Ürün',
+          user: rental.renter ? `${rental.renter.firstName} ${rental.renter.lastName}` : 'Kullanıcı',
+          startDate: new Date(rental.startDate).toLocaleDateString('tr-TR'),
+          endDate: new Date(rental.endDate).toLocaleDateString('tr-TR'),
+          status: rental.status === 'approved' ? 'Aktif' : 
+                 rental.status === 'completed' ? 'Tamamlandı' : 
+                 rental.status === 'pending' ? 'Beklemede' : rental.status,
+        }));
+        setRecentRentals(formattedRentals.slice(0, 5)); // İlk 5 tanesini al
+      }
 
       // Gelir grafiği verisi
       setRevenueData([

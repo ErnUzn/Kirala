@@ -1,57 +1,68 @@
-const { DataTypes } = require('sequelize');
-const bcrypt = require('bcryptjs');
-const sequelize = require('../config/database');
+const mongoose = require('mongoose');
 
-const User = sequelize.define('User', {
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      notEmpty: { msg: 'İsim alanı zorunludur' }
+const userSchema = new mongoose.Schema({
+    email: {
+        type: String,
+        required: true,
+        unique: true,
+        trim: true,
+        lowercase: true
+    },
+    password: {
+        type: String,
+        required: true
+    },
+    firstName: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    lastName: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    phone: {
+        type: String,
+        required: false
+    },
+    address: {
+        type: String,
+        required: false
+    },
+    role: {
+        type: String,
+        enum: ['user', 'admin'],
+        default: 'user'
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    profileImage: {
+        type: String,
+        default: null
+    },
+    rating: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5
+    },
+    isVerified: {
+        type: Boolean,
+        default: false
     }
-  },
-  email: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    unique: true,
-    validate: {
-      isEmail: { msg: 'Lütfen geçerli bir email adresi girin' },
-      notEmpty: { msg: 'Email alanı zorunludur' }
-    }
-  },
-  phone: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      notEmpty: { msg: 'Telefon alanı zorunludur' }
-    }
-  },
-  password: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      len: {
-        args: [6],
-        msg: 'Şifre en az 6 karakter olmalıdır'
-      },
-      notEmpty: { msg: 'Şifre alanı zorunludur' }
-    }
-  }
 }, {
-  timestamps: true,
-  hooks: {
-    beforeSave: async (user) => {
-      if (user.changed('password')) {
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(user.password, salt);
-      }
-    }
-  }
+    timestamps: true
 });
 
-// Şifre karşılaştırma metodu
-User.prototype.matchPassword = async function(enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
-};
+// Virtual field for full name
+userSchema.virtual('fullName').get(function() {
+    return `${this.firstName} ${this.lastName}`;
+});
+
+// Model'in zaten var olup olmadığını kontrol et
+const User = mongoose.models.User || mongoose.model('User', userSchema);
 
 module.exports = User; 

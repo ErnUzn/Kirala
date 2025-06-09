@@ -16,6 +16,9 @@ router.post('/register', validate(userSchemas.register), authController.register
 // Giriş yap
 router.post('/login', validate(userSchemas.login), authController.login);
 
+// Mevcut kullanıcı bilgilerini getir
+router.get('/me', auth, authController.getMe);
+
 // Çıkış yap
 router.post('/logout', auth, authController.logout);
 

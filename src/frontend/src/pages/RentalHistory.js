@@ -1,33 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Box,
   Container,
   Typography,
   Grid,
-  Card,
   CardContent,
   CardMedia,
-  Chip,
-  Divider,
-  Stack,
+  Button,
+  Box,
   Paper,
+  Chip,
   Alert,
-  Button
+  Stack,
+  Divider,
+  CircularProgress,
 } from '@mui/material';
 import {
-  LocationOn,
   DateRange,
-  Star,
+  LocationOn,
   ArrowBack
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { products } from './Products';
+import { getUserRentals } from '../services/rentalService';
 
 const RentalHistory = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
-  const [rentalHistory, setRentalHistory] = useState([]);
+  const [rentals, setRentals] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     // Kullanıcı bilgilerini local storage'dan al
@@ -36,51 +36,52 @@ const RentalHistory = () => {
       setUser(JSON.parse(storedUser));
     }
 
-    // Simüle edilmiş kiralama geçmişi verisi (gerçek uygulamada API'den alınacak)
-    const simulatedHistory = [
-      {
-        id: 1,
-        productId: 1,
-        startDate: '2023-06-10',
-        endDate: '2023-06-15',
-        status: 'Tamamlandı',
-        totalPrice: '1250₺'
-      },
-      {
-        id: 2,
-        productId: 8,
-        startDate: '2023-07-20',
-        endDate: '2023-07-25',
-        status: 'Tamamlandı',
-        totalPrice: '3500₺'
-      },
-      {
-        id: 3,
-        productId: 5,
-        startDate: '2023-08-05',
-        endDate: '2023-08-10',
-        status: 'Devam Ediyor',
-        totalPrice: '1750₺'
-      },
-      {
-        id: 4,
-        productId: 13,
-        startDate: '2023-09-15',
-        startDate: '2023-09-15',
-        endDate: '2023-09-20',
-        status: 'Yaklaşan',
-        totalPrice: '850₺'
-      }
-    ];
+    // Kiralama geçmişini yükle
+    const loadRentals = async () => {
+      try {
+        setLoading(true);
+        
+        // Giriş kontrolü
+        const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+        const token = localStorage.getItem('token');
+        console.log('🔍 DEBUG: Giriş durumu:', { isLoggedIn, hasToken: !!token });
+        
+        if (!isLoggedIn) {
+          setError('Giriş yapmalısınız');
+          return;
+        }
 
-    setRentalHistory(simulatedHistory);
-    setLoading(false);
+        // Kullanıcının kiralamalarını API'den çek
+        console.log('🔍 DEBUG: API çağrısı başlatılıyor...');
+        const response = await getUserRentals();
+        console.log('🔍 DEBUG: API yanıtı:', response);
+        
+        if (response.success) {
+          console.log('🔍 DEBUG: Kiralama sayısı:', response.rentals.length);
+          console.log('🔍 DEBUG: İlk kiralama:', response.rentals[0]);
+          setRentals(response.rentals);
+          console.log('✅ Kiralamalar yüklendi:', response.rentals);
+        } else {
+          console.log('❌ DEBUG: API başarısız:', response.message);
+          setError(response.message || 'Kiralamalar yüklenemedi');
+        }
+
+      } catch (err) {
+        console.log('❌ DEBUG: Hata yakalandı:', err);
+        setError(err.message);
+        console.error('Kiralama geçmişi yükleme hatası:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadRentals();
   }, []);
 
-  // Tarih formatını düzenle: YYYY-MM-DD -> DD.MM.YYYY
+  // Tarih formatını düzenle: ISO -> DD.MM.YYYY
   const formatDate = (dateString) => {
-    const [year, month, day] = dateString.split('-');
-    return `${day}.${month}.${year}`;
+    const date = new Date(dateString);
+    return date.toLocaleDateString('tr-TR');
   };
 
   // Ürün detaylarına git
@@ -91,10 +92,26 @@ const RentalHistory = () => {
   // Durum renkleri
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Tamamlandı': return 'success';
-      case 'Devam Ediyor': return 'info';
-      case 'Yaklaşan': return 'warning';
+      case 'completed': return 'success';
+      case 'active': return 'info';
+      case 'pending': return 'warning';
+      case 'cancelled': return 'error';
+      case 'rejected': return 'error';
+      case 'approved': return 'success';
       default: return 'default';
+    }
+  };
+
+  // Durum metinleri
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'completed': return 'Tamamlandı';
+      case 'active': return 'Devam Ediyor';
+      case 'pending': return 'Beklemede';
+      case 'cancelled': return 'İptal Edildi';
+      case 'rejected': return 'Reddedildi';
+      case 'approved': return 'Onaylandı';
+      default: return status;
     }
   };
 
@@ -116,6 +133,24 @@ const RentalHistory = () => {
     );
   }
 
+  if (loading) {
+    return (
+      <Container sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container sx={{ py: 4 }}>
+        <Alert severity="error">
+          Kiralama geçmişi yüklenirken bir hata oluştu: {error}
+        </Alert>
+      </Container>
+    );
+  }
+
   return (
     <Container sx={{ py: 4 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 4 }}>
@@ -131,80 +166,87 @@ const RentalHistory = () => {
         </Typography>
       </Box>
 
-      {loading ? (
-        <Typography>Yükleniyor...</Typography>
-      ) : rentalHistory.length === 0 ? (
+      {rentals.length === 0 ? (
         <Alert severity="info">Henüz kiralama geçmişiniz bulunmuyor.</Alert>
       ) : (
         <Grid container spacing={3}>
-          {rentalHistory.map((rental) => {
-            const product = products.find(p => p.id === rental.productId);
+          {rentals.map((rental) => {
+            const product = rental.item;
+            
+            if (!product) {
+              return null; // Ürün bulunamazsa bu kiralama kaydını gösterme
+            }
             
             return (
-              <Grid item xs={12} key={rental.id}>
+              <Grid item xs={12} key={rental._id}>
                 <Paper elevation={2} sx={{ p: 0, overflow: 'hidden' }}>
                   <Grid container>
                     <Grid item xs={12} md={3}>
                       <CardMedia
                         component="img"
                         height={200}
-                        image={product?.image}
-                        alt={product?.name}
+                        image={product.images && product.images[0] ? product.images[0] : 'https://via.placeholder.com/300x200'}
+                        alt={product.name}
                         onError={(e) => {
                           e.target.src = 'https://via.placeholder.com/300x200?text=Ürün+Görseli';
                         }}
                         sx={{ cursor: 'pointer', height: '100%' }}
-                        onClick={() => handleViewProduct(product.id)}
+                        onClick={() => handleViewProduct(product._id)}
                       />
                     </Grid>
                     <Grid item xs={12} md={9}>
-                      <CardContent>
+                      <CardContent sx={{ p: 3 }}>
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                          <Typography variant="h5" component="h2" gutterBottom>
-                            {product?.name}
+                          <Typography variant="h6" component="h3" sx={{ fontWeight: 'bold' }}>
+                            {product.name}
                           </Typography>
                           <Chip 
-                            label={rental.status} 
-                            color={getStatusColor(rental.status)} 
+                            label={getStatusText(rental.status)} 
+                            color={getStatusColor(rental.status)}
+                            size="small"
                           />
                         </Box>
-                        
-                        <Typography variant="body2" color="text.secondary" paragraph>
-                          {product?.description}
+
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                          {product.description}
                         </Typography>
-                        
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ mb: 2 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <DateRange sx={{ fontSize: 16, mr: 0.5 }} />
+
+                        {/* Reddetme mesajını göster */}
+                        {rental.status === 'rejected' && rental.notes && (
+                          <Alert severity="error" sx={{ mb: 2 }}>
+                            <Typography variant="body2">
+                              <strong>Red Sebebi:</strong> {rental.notes}
+                            </Typography>
+                          </Alert>
+                        )}
+
+                        <Stack direction="row" spacing={3} sx={{ mb: 2 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <DateRange fontSize="small" color="action" />
                             <Typography variant="body2">
                               {formatDate(rental.startDate)} - {formatDate(rental.endDate)}
                             </Typography>
                           </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <LocationOn sx={{ fontSize: 16, mr: 0.5 }} />
-                            <Typography variant="body2" color="text.secondary">
-                              {product?.location}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                            <Star sx={{ fontSize: 16, color: 'warning.main', mr: 0.5 }} />
-                            <Typography variant="body2" color="text.secondary">
-                              {product?.rating} ({product?.reviewCount} değerlendirme)
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <LocationOn fontSize="small" color="action" />
+                            <Typography variant="body2">
+                              {product.location || 'Konum belirtilmemiş'}
                             </Typography>
                           </Box>
                         </Stack>
-                        
+
                         <Divider sx={{ my: 2 }} />
-                        
+
                         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Typography variant="h6" color="primary">
-                            Toplam: {rental.totalPrice}
+                          <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold' }}>
+                            Toplam: {rental.totalPrice}₺
                           </Typography>
                           <Button 
                             variant="outlined" 
-                            onClick={() => handleViewProduct(product.id)}
+                            size="small"
+                            onClick={() => handleViewProduct(product._id)}
                           >
-                            Ürün Detayları
+                            Ürünü Görüntüle
                           </Button>
                         </Box>
                       </CardContent>

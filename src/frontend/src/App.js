@@ -28,6 +28,9 @@ import Products from './pages/Products';
 import Contact from './pages/Contact';
 import FAQ from './pages/FAQ';
 import RentalHistory from './pages/RentalHistory';
+import AddProduct from './pages/AddProduct';
+import RentalApprovals from './pages/RentalApprovals';
+import ChatList from './pages/ChatList';
 
 // Admin Pages
 import AdminLogin from './pages/admin/AdminLogin';
@@ -36,6 +39,10 @@ import AdminProducts from './pages/admin/AdminProducts';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminReports from './pages/admin/AdminReports';
+import AdminPayments from './pages/admin/AdminPayments';
+import AdminRentals from './pages/admin/AdminRentals';
+import AdminContent from './pages/admin/AdminContent';
 
 // Theme
 const theme = createTheme({
@@ -78,6 +85,9 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/faq" element={<FAQ />} />
               <Route path="/rental-history" element={<RentalHistory />} />
+              <Route path="/add-product" element={<AddProduct />} />
+              <Route path="/rental-approvals" element={<RentalApprovals />} />
+              <Route path="/chat-list" element={<ChatList />} />
 
               {/* Admin Routes */}
               <Route path="/admin/login" element={<AdminLogin />} />
@@ -86,6 +96,10 @@ function App() {
               <Route path="/admin/products" element={<AdminLayout><AdminProducts /></AdminLayout>} />
               <Route path="/admin/users" element={<AdminLayout><AdminUsers /></AdminLayout>} />
               <Route path="/admin/orders" element={<AdminLayout><AdminOrders /></AdminLayout>} />
+              <Route path="/admin/rentals" element={<AdminLayout><AdminRentals /></AdminLayout>} />
+              <Route path="/admin/payments" element={<AdminLayout><AdminPayments /></AdminLayout>} />
+              <Route path="/admin/reports" element={<AdminLayout><AdminReports /></AdminLayout>} />
+              <Route path="/admin/content" element={<AdminLayout><AdminContent /></AdminLayout>} />
               <Route path="/admin/settings" element={<AdminLayout><AdminSettings /></AdminLayout>} />
             </Routes>
           </Box>

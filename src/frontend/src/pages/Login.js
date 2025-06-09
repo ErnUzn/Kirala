@@ -9,6 +9,7 @@ import {
   Paper,
   Avatar,
   Alert,
+  CircularProgress,
 } from '@mui/material';
 import { LockOutlined as LockOutlinedIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -20,6 +21,7 @@ const Login = () => {
     password: '',
   });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -32,34 +34,58 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
       if (!formData.email || !formData.password) {
         setError('Lütfen tüm alanları doldurun.');
+        setLoading(false);
         return;
       }
 
-      // Simüle edilmiş kullanıcı verisi
-      const mockUser = {
-        id: 1,
-        firstName: 'Test',
-        lastName: 'Kullanıcı',
-        email: formData.email,
-        role: 'user',
-      };
+      // Backend API'ye giriş isteği gönder
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
-      // Kullanıcı bilgilerini localStorage'a kaydet
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('token', 'mock-jwt-token');
+      const data = await response.json();
 
-      // Kullanıcı durumu değişikliğini bildir
-      window.dispatchEvent(new Event('userStateChange'));
+      if (!response.ok) {
+        throw new Error(data.message || 'Giriş yapılırken bir hata oluştu');
+      }
 
-      // Ana sayfaya yönlendir
-      navigate('/');
+      if (data.success) {
+        // Kullanıcı bilgilerini localStorage'a kaydet
+        localStorage.setItem('user', JSON.stringify(data.user));
+        localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('token', data.token);
+
+        console.log('Giriş başarılı, kullanıcı verisi:', data.user);
+
+        // Kullanıcı durumu değişikliğini bildir
+        window.dispatchEvent(new Event('userStateChange'));
+
+        // Kullanıcı rolüne göre yönlendirme
+        if (data.user.role === 'admin') {
+          navigate('/admin/dashboard');
+        } else {
+          navigate('/');
+        }
+      } else {
+        setError(data.message || 'Giriş yapılırken bir hata oluştu');
+      }
     } catch (error) {
-      setError('Giriş yapılırken bir hata oluştu.');
+      console.error('Login error:', error);
+      setError(error.message || 'Giriş yapılırken bir hata oluştu');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -99,6 +125,7 @@ const Login = () => {
               autoFocus
               value={formData.email}
               onChange={handleChange}
+              disabled={loading}
             />
             <TextField
               margin="normal"
@@ -111,14 +138,16 @@ const Login = () => {
               autoComplete="current-password"
               value={formData.password}
               onChange={handleChange}
+              disabled={loading}
             />
             <Button
               type="submit"
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
+              disabled={loading}
             >
-              Giriş Yap
+              {loading ? <CircularProgress size={24} /> : 'Giriş Yap'}
             </Button>
             <Box sx={{ textAlign: 'center' }}>
               <Link href="/register" variant="body2">

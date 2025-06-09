@@ -21,6 +21,8 @@ import {
   CircularProgress,
   Switch,
   FormControlLabel,
+  Chip,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -29,6 +31,7 @@ import {
   Search as SearchIcon,
 } from '@mui/icons-material';
 import { styled } from '@mui/material/styles';
+import { getAllUsers, updateUserStatus, deleteUser } from '../../services/adminService';
 
 const SearchField = styled(TextField)(({ theme }) => ({
   marginBottom: theme.spacing(2),
@@ -47,6 +50,7 @@ const AdminUsers = () => {
     status: true,
   });
   const [searchQuery, setSearchQuery] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     fetchUsers();
@@ -54,54 +58,14 @@ const AdminUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      // Tutarlı kullanıcı verileri
-      const adminUsers = [
-        {
-          id: 1,
-          name: 'Ahmet Yılmaz',
-          email: 'ahmet@example.com',
-          phone: '5551234567',
-          role: 'user',
-          joinDate: '2023-01-15',
-        },
-        {
-          id: 2,
-          name: 'Ayşe Demir',
-          email: 'ayse@example.com',
-          phone: '5552345678',
-          role: 'user',
-          joinDate: '2023-02-20',
-        },
-        {
-          id: 3,
-          name: 'Mehmet Kaya',
-          email: 'mehmet@example.com',
-          phone: '5553456789',
-          role: 'user',
-          joinDate: '2023-03-10',
-        },
-        {
-          id: 4,
-          name: 'Zeynep Şahin',
-          email: 'zeynep@example.com',
-          phone: '5554567890',
-          role: 'user',
-          joinDate: '2023-04-05',
-        },
-        {
-          id: 5,
-          name: 'Admin User',
-          email: 'admin@example.com',
-          phone: '5555678901',
-          role: 'admin',
-          joinDate: '2023-01-01',
-        }
-      ];
-      
-      setUsers(adminUsers);
-      setLoading(false);
+      setLoading(true);
+      setError('');
+      const usersData = await getAllUsers();
+      setUsers(usersData);
     } catch (error) {
       console.error('Kullanıcılar alınamadı:', error);
+      setError('Kullanıcılar yüklenirken bir hata oluştu: ' + error.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -109,7 +73,13 @@ const AdminUsers = () => {
   const handleOpenDialog = (user = null) => {
     if (user) {
       setSelectedUser(user);
-      setFormData(user);
+      setFormData({
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        phone: user.phone || '',
+        role: user.role,
+        status: user.isActive,
+      });
     } else {
       setSelectedUser(null);
       setFormData({
@@ -138,59 +108,52 @@ const AdminUsers = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // TODO: API çağrısı yapılacak
       if (selectedUser) {
-        // Kullanıcı güncelleme
-        setUsers(
-          users.map((user) =>
-            user.id === selectedUser.id ? formData : user
-          )
-        );
+        // Kullanıcı güncelleme - şu anda sadece status güncelleyebiliyoruz
+        await updateUserStatus(selectedUser._id, formData.status);
+        await fetchUsers(); // Güncel verileri yeniden çek
       } else {
-        // Yeni kullanıcı ekleme
-        setUsers([
-          ...users,
-          {
-            id: users.length + 1,
-            ...formData,
-            joinDate: new Date().toISOString().split('T')[0],
-          },
-        ]);
+        // Yeni kullanıcı ekleme - bu endpoint henüz yok
+        console.log('Yeni kullanıcı ekleme özelliği henüz eklenmedi');
       }
       handleCloseDialog();
     } catch (error) {
       console.error('Kullanıcı kaydedilemedi:', error);
+      setError('Kullanıcı güncellenirken bir hata oluştu: ' + error.message);
     }
   };
 
   const handleDelete = async (userId) => {
     if (window.confirm('Bu kullanıcıyı silmek istediğinizden emin misiniz?')) {
       try {
-        // TODO: API çağrısı yapılacak
-        setUsers(users.filter((user) => user.id !== userId));
+        await deleteUser(userId);
+        await fetchUsers(); // Güncel verileri yeniden çek
       } catch (error) {
         console.error('Kullanıcı silinemedi:', error);
+        setError('Kullanıcı silinirken bir hata oluştu: ' + error.message);
       }
     }
   };
 
   const handleStatusChange = async (userId, newStatus) => {
     try {
-      // TODO: API çağrısı yapılacak
+      await updateUserStatus(userId, newStatus);
       setUsers(
         users.map((user) =>
-          user.id === userId ? { ...user, status: newStatus } : user
+          user._id === userId ? { ...user, isActive: newStatus } : user
         )
       );
     } catch (error) {
       console.error('Kullanıcı durumu güncellenemedi:', error);
+      setError('Kullanıcı durumu güncellenirken bir hata oluştu: ' + error.message);
     }
   };
 
-  const filteredUsers = users.filter((user) =>
-    user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    user.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredUsers = users.filter((user) => {
+    const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+    const query = searchQuery.toLowerCase();
+    return fullName.includes(query) || user.email.toLowerCase().includes(query);
+  });
 
   if (loading) {
     return (
@@ -207,36 +170,43 @@ const AdminUsers = () => {
 
   return (
     <Box>
-      <Box
-        display="flex"
-        justifyContent="space-between"
-        alignItems="center"
-        mb={3}
-      >
-        <Typography variant="h4">Kullanıcı Yönetimi</Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-        >
-          Yeni Kullanıcı
-        </Button>
-      </Box>
+      <Typography variant="h4" gutterBottom>
+        Kullanıcı Yönetimi
+      </Typography>
 
-      <SearchField
-        fullWidth
-        variant="outlined"
-        placeholder="Kullanıcı ara..."
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        InputProps={{
-          startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />,
-        }}
-      />
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
 
       <Card>
         <CardContent>
+          <Box
+            display="flex"
+            justifyContent="space-between"
+            alignItems="center"
+            mb={2}
+          >
+            <SearchField
+              label="Kullanıcı Ara"
+              variant="outlined"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              InputProps={{
+                endAdornment: <SearchIcon />,
+              }}
+              sx={{ width: 300 }}
+            />
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenDialog()}
+            >
+              Yeni Kullanıcı
+            </Button>
+          </Box>
+
           <TableContainer component={Paper}>
             <Table>
               <TableHead>
@@ -246,40 +216,51 @@ const AdminUsers = () => {
                   <TableCell>Telefon</TableCell>
                   <TableCell>Rol</TableCell>
                   <TableCell>Durum</TableCell>
-                  <TableCell>Kayıt Tarihi</TableCell>
+                  <TableCell>Üyelik Tarihi</TableCell>
                   <TableCell>İşlemler</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.name}</TableCell>
+                  <TableRow key={user._id}>
+                    <TableCell>{`${user.firstName} ${user.lastName}`}</TableCell>
                     <TableCell>{user.email}</TableCell>
-                    <TableCell>{user.phone}</TableCell>
-                    <TableCell>{user.role}</TableCell>
+                    <TableCell>{user.phone || '-'}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={user.role === 'admin' ? 'Admin' : 'Kullanıcı'}
+                        color={user.role === 'admin' ? 'secondary' : 'primary'}
+                        size="small"
+                      />
+                    </TableCell>
                     <TableCell>
                       <FormControlLabel
                         control={
                           <Switch
-                            checked={user.status}
+                            checked={user.isActive}
                             onChange={(e) =>
-                              handleStatusChange(user.id, e.target.checked)
+                              handleStatusChange(user._id, e.target.checked)
                             }
+                            color="primary"
                           />
                         }
+                        label={user.isActive ? 'Aktif' : 'Pasif'}
                       />
                     </TableCell>
-                    <TableCell>{user.joinDate}</TableCell>
+                    <TableCell>
+                      {new Date(user.createdAt).toLocaleDateString('tr-TR')}
+                    </TableCell>
                     <TableCell>
                       <IconButton
-                        color="primary"
                         onClick={() => handleOpenDialog(user)}
+                        color="primary"
                       >
                         <EditIcon />
                       </IconButton>
                       <IconButton
+                        onClick={() => handleDelete(user._id)}
                         color="error"
-                        onClick={() => handleDelete(user.id)}
+                        disabled={user.role === 'admin'}
                       >
                         <DeleteIcon />
                       </IconButton>
@@ -289,9 +270,18 @@ const AdminUsers = () => {
               </TableBody>
             </Table>
           </TableContainer>
+
+          {filteredUsers.length === 0 && !loading && (
+            <Box textAlign="center" py={4}>
+              <Typography variant="h6" color="textSecondary">
+                {searchQuery ? 'Arama kriterlerine uygun kullanıcı bulunamadı' : 'Henüz kullanıcı bulunmamaktadır'}
+              </Typography>
+            </Box>
+          )}
         </CardContent>
       </Card>
 
+      {/* Kullanıcı Ekleme/Düzenleme Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
         <DialogTitle>
           {selectedUser ? 'Kullanıcı Düzenle' : 'Yeni Kullanıcı Ekle'}
@@ -307,6 +297,7 @@ const AdminUsers = () => {
               }
               margin="normal"
               required
+              disabled={selectedUser} // Mevcut kullanıcılar için ad değiştirme kapalı
             />
             <TextField
               fullWidth
@@ -318,6 +309,7 @@ const AdminUsers = () => {
               }
               margin="normal"
               required
+              disabled={selectedUser} // Mevcut kullanıcılar için email değiştirme kapalı
             />
             <TextField
               fullWidth
@@ -327,25 +319,8 @@ const AdminUsers = () => {
                 setFormData({ ...formData, phone: e.target.value })
               }
               margin="normal"
-              required
+              disabled={selectedUser} // Mevcut kullanıcılar için telefon değiştirme kapalı
             />
-            <TextField
-              fullWidth
-              label="Rol"
-              value={formData.role}
-              onChange={(e) =>
-                setFormData({ ...formData, role: e.target.value })
-              }
-              margin="normal"
-              required
-              select
-              SelectProps={{
-                native: true,
-              }}
-            >
-              <option value="user">Kullanıcı</option>
-              <option value="admin">Admin</option>
-            </TextField>
             <FormControlLabel
               control={
                 <Switch
@@ -353,14 +328,16 @@ const AdminUsers = () => {
                   onChange={(e) =>
                     setFormData({ ...formData, status: e.target.checked })
                   }
+                  color="primary"
                 />
               }
               label="Aktif"
+              sx={{ mt: 2 }}
             />
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseDialog}>İptal</Button>
-            <Button type="submit" variant="contained" color="primary">
+            <Button type="submit" variant="contained">
               {selectedUser ? 'Güncelle' : 'Ekle'}
             </Button>
           </DialogActions>

@@ -8,19 +8,32 @@ import {
   Card,
   CardMedia,
   Divider,
-  Rating,
   IconButton,
   Stack,
+  CircularProgress,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Avatar,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import {
   Favorite as FavoriteIcon,
   FavoriteBorder as FavoriteBorderIcon,
+  Message as MessageIcon,
 } from '@mui/icons-material';
 import { useParams, useNavigate } from 'react-router-dom';
 
-// Products listesini import ediyoruz
-import { products } from './Products'; 
+// API servislerini import ediyoruz
+import { getProductById } from '../services/productService'; 
+import { createRental } from '../services/rentalService';
+import { getCurrentUser, isLoggedIn } from '../services/authService';
+import Chat from '../components/Chat';
+import { SimpleStarRating, InteractiveStarRating } from '../components/StarRating';
+import { getItemRatings, getUserRating, rateItem } from '../services/ratingService';
 
 const DurationButton = styled(Button)(({ theme, selected }) => ({
   minWidth: '80px',
@@ -42,51 +55,141 @@ const ProductDetail = () => {
   });
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [rentalLoading, setRentalLoading] = useState(false);
+  const [rentalSuccess, setRentalSuccess] = useState(false);
+  const [rentalError, setRentalError] = useState('');
+  const [chatOpen, setChatOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [ratings, setRatings] = useState({ average: 0, count: 0, reviews: [] });
+  const [userRating, setUserRating] = useState(null);
+  const [showRatingForm, setShowRatingForm] = useState(false);
+  const [newRating, setNewRating] = useState(0);
+  const [newComment, setNewComment] = useState('');
 
-  // Ürün verisini ID'ye göre getir
+  // Ürün verisini API'den getir
   useEffect(() => {
-    try {
-      console.log("Products array:", products);
-      console.log("Looking for product with ID:", id);
-      
-      // Tüm ürünler içinden ilgili ID'ye sahip ürünü bul
-      // Bazı tarayıcılar URL parametrelerini string olarak işler, 
-      // bu yüzden hem string hem sayı olarak kontrol ediyoruz
-      const foundProduct = products.find(p => String(p.id) === String(id));
-      
-      console.log("Found product:", foundProduct);
-      
-      if (foundProduct) {
-        // Fiyat string'ini parse et ("250₺/gün" formatından)
-        const priceString = foundProduct.price;
-        // Türkçe karaktere dikkat ederek sadece sayıları al
-        const numericPrice = parseInt(priceString.replace(/[^0-9]/g, ''));
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        console.log("Fetching product with ID:", id);
+        
+        const productData = await getProductById(id);
+        console.log("Fetched product:", productData);
         
         // Ürün verilerini işle
         const processedProduct = {
-          ...foundProduct,
-          priceNumeric: numericPrice, // Sayısal fiyatı ayrıca sakla
+          ...productData,
           features: [
-            `Kategori: ${foundProduct.category}`,
-            `Durum: ${foundProduct.condition}`,
-            `Konum: ${foundProduct.location}`,
-            `Değerlendirme: ${foundProduct.rating}/5`,
-            `Değerlendirme Sayısı: ${foundProduct.reviewCount}`
+            `Kategori: ${productData.category}`,
+            `Durum: ${productData.condition}`,
+            `Konum: ${productData.location}`,
+            `Günlük Fiyat: ${productData.dailyPrice}₺`,
+            ...(productData.weeklyPrice ? [`Haftalık Fiyat: ${productData.weeklyPrice}₺`] : []),
+            ...(productData.monthlyPrice ? [`Aylık Fiyat: ${productData.monthlyPrice}₺`] : [])
           ]
         };
         
         setProduct(processedProduct);
-      } else {
-        console.error("Ürün bulunamadı, ID:", id);
-        // Ürün bulunamadıysa ana sayfaya yönlendir
-        navigate('/products');
+      } catch (err) {
+        console.error("Ürün detay sayfası yükleme hatası:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Ürün detay sayfası yükleme hatası:", err);
-    } finally {
-      setLoading(false);
+    };
+
+    if (id) {
+      fetchProduct();
     }
-  }, [id, navigate]);
+  }, [id]);
+
+  // Mevcut kullanıcı bilgilerini yükle
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      if (isLoggedIn()) {
+        try {
+          const userData = await getCurrentUser();
+          if (userData) {
+            setCurrentUser(userData);
+          }
+        } catch (error) {
+          console.error('Kullanıcı bilgileri yükleme hatası:', error);
+          // Token geçersizse localStorage'ı temizle
+          localStorage.removeItem('token');
+          localStorage.removeItem('isLoggedIn');
+          localStorage.removeItem('user');
+        }
+      }
+    };
+
+    loadCurrentUser();
+  }, []);
+
+  // Rating'leri yükle
+  useEffect(() => {
+    const loadRatings = async () => {
+      if (!id) return;
+      
+      try {
+        // Ürün rating'lerini getir
+        const ratingsData = await getItemRatings(id);
+        if (ratingsData.success) {
+          setRatings({
+            average: ratingsData.rating.average,
+            count: ratingsData.rating.count,
+            reviews: ratingsData.reviews || []
+          });
+          
+          // Eğer kullanıcı giriş yapmışsa, kullanıcının rating'ini de getir
+          if (isLoggedIn()) {
+            const userRatingData = await getUserRating(id);
+            if (userRatingData.success) {
+              setUserRating(userRatingData.review);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Rating yükleme hatası:', error);
+      }
+    };
+
+    loadRatings();
+  }, [id]);
+
+  // Rating gönderme fonksiyonu
+  const handleSubmitRating = async () => {
+    if (!newRating) return;
+    
+    try {
+      const result = await rateItem(id, newRating, newComment);
+      if (result.success) {
+        // Rating'leri yeniden yükle
+        const ratingsData = await getItemRatings(id);
+        if (ratingsData.success) {
+          setRatings({
+            average: ratingsData.rating.average,
+            count: ratingsData.rating.count,
+            reviews: ratingsData.reviews || []
+          });
+        }
+        
+        // User rating'ini güncelle
+        setUserRating({
+          rating: newRating,
+          comment: newComment,
+          createdAt: new Date().toISOString()
+        });
+        
+        // Form'u kapat
+        setShowRatingForm(false);
+        setNewRating(0);
+        setNewComment('');
+      }
+    } catch (error) {
+      console.error('Rating gönderme hatası:', error);
+    }
+  };
 
   useEffect(() => {
     localStorage.setItem('favorites', JSON.stringify(favorites));
@@ -96,18 +199,18 @@ const ProductDetail = () => {
     if (!product) return;
     
     setFavorites(prevFavorites => {
-      const isFavorite = prevFavorites.includes(product.id);
+      const isFavorite = prevFavorites.includes(product._id);
       if (isFavorite) {
-        return prevFavorites.filter(fav => fav !== product.id);
+        return prevFavorites.filter(fav => fav !== product._id);
       } else {
-        return [...prevFavorites, product.id];
+        return [...prevFavorites, product._id];
       }
     });
   };
 
   const isFavorite = () => {
     if (!product) return false;
-    return favorites.includes(product.id);
+    return favorites.includes(product._id);
   };
 
   const durations = [
@@ -121,13 +224,126 @@ const ProductDetail = () => {
     setSelectedDuration(days);
   };
 
-  // Ürün yükleniyor veya bulunamadı
-  if (loading || !product) {
+  const calculateTotalPrice = () => {
+    if (!product) return 0;
+    
+    let pricePerDay = product.dailyPrice;
+    
+    // Haftalık veya aylık fiyat varsa ve daha uygunsa onu kullan
+    if (selectedDuration >= 30 && product.monthlyPrice) {
+      const monthlyTotal = Math.ceil(selectedDuration / 30) * product.monthlyPrice;
+      const dailyTotal = selectedDuration * pricePerDay;
+      return Math.min(monthlyTotal, dailyTotal);
+    } else if (selectedDuration >= 7 && product.weeklyPrice) {
+      const weeklyTotal = Math.ceil(selectedDuration / 7) * product.weeklyPrice;
+      const dailyTotal = selectedDuration * pricePerDay;
+      return Math.min(weeklyTotal, dailyTotal);
+    }
+    
+    return selectedDuration * pricePerDay;
+  };
+
+  const handleRental = async () => {
+    try {
+      // Giriş kontrolü
+      if (!isLoggedIn()) {
+        navigate('/login');
+        return;
+      }
+
+      setRentalLoading(true);
+      setRentalError('');
+
+      // Kiralama verilerini hazırla
+      const startDate = new Date();
+      const endDate = new Date();
+      endDate.setDate(startDate.getDate() + selectedDuration);
+
+      const rentalData = {
+        itemId: product._id,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+        totalPrice: calculateTotalPrice()
+      };
+
+      console.log('Kiralama verisi:', rentalData);
+
+      // Kiralama oluştur
+      const result = await createRental(rentalData);
+      
+      if (result.success) {
+        setRentalSuccess(true);
+        console.log('Kiralama başarılı:', result);
+      } else {
+        setRentalError(result.message || 'Kiralama oluşturulamadı');
+      }
+
+    } catch (error) {
+      console.error('Kiralama hatası:', error);
+      setRentalError(error.message || 'Kiralama sırasında bir hata oluştu');
+    } finally {
+      setRentalLoading(false);
+    }
+  };
+
+  const handleCloseSuccessDialog = () => {
+    setRentalSuccess(false);
+    navigate('/'); // Ana sayfaya yönlendir
+  };
+
+  const handleChatOpen = () => {
+    // Giriş kontrolü
+    if (!isLoggedIn()) {
+      navigate('/login');
+      return;
+    }
+
+    // Kendi ürününe mesaj gönderemez
+    if (product?.ownerInfo?.userId === currentUser?.id) {
+      alert('Kendi ürününüze mesaj gönderemezsiniz.');
+      return;
+    }
+
+    setChatOpen(true);
+  };
+
+  // Loading state
+  if (loading) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Typography variant="h5" align="center" color="error">
+          {error}
+        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <Button variant="contained" onClick={() => navigate('/products')}>
+            Ürünlere Geri Dön
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
+
+  // Product not found
+  if (!product) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Typography variant="h5" align="center">
-          {loading ? 'Ürün yükleniyor...' : 'Ürün bulunamadı'}
+          Ürün bulunamadı
         </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+          <Button variant="contained" onClick={() => navigate('/products')}>
+            Ürünlere Geri Dön
+          </Button>
+        </Box>
       </Container>
     );
   }
@@ -141,7 +357,7 @@ const ProductDetail = () => {
             <CardMedia
               component="img"
               height="400"
-              image={product.image}
+              image={product.images && product.images[0] ? product.images[0] : 'https://via.placeholder.com/800x400'}
               alt={product.name}
               onError={(e) => {
                 e.target.src = 'https://via.placeholder.com/800x400?text=Ürün+Görseli';
@@ -172,16 +388,35 @@ const ProductDetail = () => {
             </IconButton>
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-            <Rating value={product.rating} precision={0.5} readOnly />
-            <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-              ({product.reviewCount} değerlendirme)
-            </Typography>
-          </Box>
-
           <Typography variant="h5" color="primary" gutterBottom>
-            {product.price}
+            {product.dailyPrice}₺/gün
           </Typography>
+
+          {/* Rating Bölümü */}
+          <Box sx={{ mb: 2 }}>
+            <SimpleStarRating 
+              rating={ratings.average || 0} 
+              count={ratings.count || 0} 
+              size="medium" 
+            />
+            {isLoggedIn() && (
+              <Box sx={{ mt: 1 }}>
+                {userRating ? (
+                  <Typography variant="body2" color="text.secondary">
+                    Puanınız: {userRating.rating}/5 yıldız
+                  </Typography>
+                ) : (
+                  <Button 
+                    size="small" 
+                    onClick={() => setShowRatingForm(true)}
+                    sx={{ textTransform: 'none' }}
+                  >
+                    Bu ürünü puanla
+                  </Button>
+                )}
+              </Box>
+            )}
+          </Box>
 
           <Typography variant="body1" paragraph>
             {product.description}
@@ -202,44 +437,27 @@ const ProductDetail = () => {
 
           <Divider sx={{ my: 2 }} />
 
-          <Box sx={{ mb: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              Konum: {product.location}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Durum: {product.condition}
-            </Typography>
-          </Box>
-
-          <Box sx={{ mb: 4 }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Kiralama Süresi
-            </Typography>
-            <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
-              Lütfen kiralama süresini seçin
-            </Typography>
-            <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-              {durations.map((duration) => (
-                <DurationButton
-                  key={duration.days}
-                  selected={selectedDuration === duration.days}
-                  onClick={() => handleDurationSelect(duration.days)}
-                >
-                  {duration.label}
-                </DurationButton>
-              ))}
-            </Stack>
-            <Typography variant="caption" color="text.secondary" display="block">
-              Minimum Kiralama: 1 Gün
-            </Typography>
-          </Box>
+          <Typography variant="h6" gutterBottom>
+            Kiralama Süresi
+          </Typography>
+          <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+            {durations.map((duration) => (
+              <DurationButton
+                key={duration.days}
+                selected={selectedDuration === duration.days}
+                onClick={() => handleDurationSelect(duration.days)}
+              >
+                {duration.label}
+              </DurationButton>
+            ))}
+          </Stack>
 
           <Box sx={{ mb: 3 }}>
             <Typography variant="h6" gutterBottom>
-              Seçilen: {selectedDuration} Gün
+              Toplam Tutar: {calculateTotalPrice()}₺
             </Typography>
-            <Typography variant="h5" color="primary">
-              Toplam: {product.priceNumeric * selectedDuration}₺
+            <Typography variant="body2" color="text.secondary">
+              {selectedDuration} gün için
             </Typography>
           </Box>
 
@@ -248,11 +466,163 @@ const ProductDetail = () => {
             color="primary"
             size="large"
             fullWidth
+            sx={{ mb: 2 }}
+            onClick={handleRental}
+            disabled={rentalLoading}
           >
-            Kirala
+            {rentalLoading ? <CircularProgress size={24} /> : 'Kirala'}
+          </Button>
+
+          {rentalError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {rentalError}
+            </Alert>
+          )}
+
+          <Button
+            variant="outlined"
+            color="primary"
+            size="large"
+            fullWidth
+            onClick={handleChatOpen}
+            startIcon={<MessageIcon />}
+          >
+            Mesaj Gönder
           </Button>
         </Grid>
       </Grid>
+
+      {/* Değerlendirmeler Bölümü */}
+      {ratings.count > 0 && (
+        <Box sx={{ mt: 6 }}>
+          <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
+            Değerlendirmeler ({ratings.count})
+          </Typography>
+          
+          <Box sx={{ mb: 3 }}>
+            <SimpleStarRating 
+              rating={ratings.average || 0} 
+              count={ratings.count || 0} 
+              size="large" 
+            />
+          </Box>
+
+          <Grid container spacing={3}>
+            {ratings.reviews && ratings.reviews.map((review, index) => (
+              <Grid item xs={12} key={index}>
+                <Card sx={{ p: 3 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <Avatar sx={{ mr: 2, bgcolor: 'primary.main' }}>
+                      {review.userName?.charAt(0) || 'U'}
+                    </Avatar>
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                        {review.userName || 'Anonim Kullanıcı'}
+                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <SimpleStarRating 
+                          rating={review.rating} 
+                          count={0}
+                          size="small" 
+                          showCount={false}
+                        />
+                        <Typography variant="body2" color="text.secondary">
+                          {new Date(review.createdAt).toLocaleDateString('tr-TR')}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                  
+                  {review.comment && (
+                    <Typography variant="body1" sx={{ ml: 7 }}>
+                      {review.comment}
+                    </Typography>
+                  )}
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
+      )}
+
+      {/* Başarı Dialog'u */}
+      <Dialog open={rentalSuccess} onClose={handleCloseSuccessDialog}>
+        <DialogTitle>Kiralama Talebi Gönderildi!</DialogTitle>
+        <DialogContent>
+          <Typography>
+            {product?.name} ürünü için kiralama talebiniz başarıyla gönderildi.
+            Ürün sahibinin onayından sonra kiralama işlemi tamamlanacaktır.
+          </Typography>
+          <Typography sx={{ mt: 2, fontWeight: 'bold' }}>
+            Talep Detayları:
+          </Typography>
+          <Typography>
+            • Süre: {selectedDuration} gün
+          </Typography>
+          <Typography>
+            • Toplam tutar: {calculateTotalPrice()}₺
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseSuccessDialog} variant="contained">
+            Tamam
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Rating Dialog */}
+      <Dialog open={showRatingForm} onClose={() => setShowRatingForm(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Ürünü Puanla</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mb: 3, textAlign: 'center' }}>
+            <Typography variant="h6" gutterBottom>
+              {product?.name}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              Bu ürün hakkında ne düşünüyorsunuz?
+            </Typography>
+            <Box sx={{ my: 2 }}>
+              <InteractiveStarRating 
+                rating={newRating} 
+                onRate={setNewRating} 
+                size="large" 
+              />
+            </Box>
+          </Box>
+          <TextField
+            fullWidth
+            label="Yorum (İsteğe bağlı)"
+            multiline
+            rows={3}
+            value={newComment}
+            onChange={(e) => setNewComment(e.target.value)}
+            placeholder="Ürün hakkında deneyiminizi paylaşın..."
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowRatingForm(false)}>
+            İptal
+          </Button>
+          <Button 
+            onClick={handleSubmitRating} 
+            variant="contained"
+            disabled={!newRating}
+          >
+            Puanla
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Chat Dialog */}
+      {product && (
+        <Chat
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
+          item={product}
+          otherUser={product.ownerInfo}
+          currentUser={currentUser}
+        />
+      )}
     </Container>
   );
 };

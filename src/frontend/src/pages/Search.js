@@ -16,6 +16,8 @@ import {
   TextField,
   InputAdornment,
   IconButton,
+  CardActions,
+  CircularProgress,
 } from '@mui/material';
 import {
   Search as SearchIcon,
@@ -27,8 +29,8 @@ import {
 import { styled } from '@mui/material/styles';
 import { useNavigate, useLocation } from 'react-router-dom';
 
-// Ürün listesini import edelim
-import { products } from './Products';
+// API servisini import edelim
+import { getAllProducts, searchProducts } from '../services/productService';
 
 // Styled components
 const SearchField = styled(TextField)(({ theme }) => ({
@@ -41,6 +43,9 @@ const Search = () => {
   const queryParams = new URLSearchParams(location.search);
   const initialQuery = queryParams.get('q') || '';
   
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [priceRange, setPriceRange] = useState('all');
   const [condition, setCondition] = useState('all');
   const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -49,6 +54,31 @@ const Search = () => {
     const savedFavorites = localStorage.getItem('favorites');
     return savedFavorites ? JSON.parse(savedFavorites) : [];
   });
+
+  // URL parametrelerini dinle
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const queryFromUrl = queryParams.get('q') || '';
+    setSearchQuery(queryFromUrl);
+  }, [location.search]);
+
+  // Ürünleri API'den çek
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const data = await getAllProducts();
+        setProducts(data);
+      } catch (err) {
+        setError(err.message);
+        console.error('Ürünler yüklenirken hata:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('favorites', JSON.stringify(favorites));
@@ -82,6 +112,10 @@ const Search = () => {
     }
   };
 
+  const handleSearchInputChange = (event) => {
+    setSearchQuery(event.target.value);
+  };
+
   // Filtreleri uygula
   const handlePriceRangeChange = (event) => {
     setPriceRange(event.target.value);
@@ -97,18 +131,11 @@ const Search = () => {
 
   // Ürünleri filtreleme
   const getFilteredProducts = () => {
-    // Tüm Products.js ürünlerini kullanıyoruz
     let filtered = [...products];
 
     // Arama sorgusuna göre filtreleme
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        product =>
-          product.name.toLowerCase().includes(query) ||
-          product.description.toLowerCase().includes(query) ||
-          product.category.toLowerCase().includes(query)
-      );
+      filtered = searchProducts(filtered, searchQuery);
     }
 
     // Kategoriye göre filtreleme
@@ -127,7 +154,7 @@ const Search = () => {
 
       const range = priceRanges[priceRange];
       filtered = filtered.filter(product => {
-        const numericPrice = parseInt(product.price.replace(/[^\d]/g, ''));
+        const numericPrice = Number(product.dailyPrice);
         return numericPrice >= range.min && numericPrice <= range.max;
       });
     }
@@ -142,8 +169,24 @@ const Search = () => {
 
   const filteredProducts = getFilteredProducts();
 
-  // Kategori listesi (Products.js'den dinamik olarak oluşturuldu)
+  // Kategori listesi (API'den gelen ürünlerden dinamik olarak oluşturuldu)
   const categories = [...new Set(products.map(product => product.category))];
+
+  if (loading) {
+    return (
+      <Container sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '50vh' }}>
+        <Typography color="error">{error}</Typography>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -158,7 +201,8 @@ const Search = () => {
             <SearchField
               fullWidth
               placeholder="Ara..."
-              defaultValue={searchQuery}
+              value={searchQuery}
+              onChange={handleSearchInputChange}
               onKeyPress={handleSearch}
               InputProps={{
                 startAdornment: (
@@ -221,72 +265,72 @@ const Search = () => {
                 onChange={handleConditionChange}
               >
                 <MenuItem value="all">Tümü</MenuItem>
-                <MenuItem value="Yeni">Yeni</MenuItem>
-                <MenuItem value="İyi">İyi</MenuItem>
-                <MenuItem value="Normal">Normal</MenuItem>
+                <MenuItem value="new">Yeni</MenuItem>
+                <MenuItem value="like-new">Sıfır Gibi</MenuItem>
+                <MenuItem value="good">İyi</MenuItem>
+                <MenuItem value="fair">Orta</MenuItem>
               </Select>
             </FormControl>
           </Box>
         </Grid>
 
-        {/* Sağ Taraf - Ürünler */}
+        {/* Sağ Taraf - Ürün Listesi */}
         <Grid item xs={12} md={9}>
-          {filteredProducts.length === 0 ? (
-            <Typography variant="h6" align="center" sx={{ my: 4 }}>
-              Aramanıza uygun sonuç bulunamadı.
+          <Box sx={{ mb: 2 }}>
+            <Typography variant="h6" gutterBottom>
+              {filteredProducts.length} ürün bulundu
+              {searchQuery && ` "${searchQuery}" için`}
             </Typography>
+          </Box>
+
+          {filteredProducts.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 4 }}>
+              <Typography variant="h6" color="text.secondary">
+                Arama kriterlerinize uygun ürün bulunamadı
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                Farklı arama terimleri veya filtreler deneyebilirsiniz
+              </Typography>
+            </Box>
           ) : (
             <Grid container spacing={3}>
               {filteredProducts.map((product) => (
-                <Grid item xs={12} sm={6} md={4} key={product.id}>
-                  <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                <Grid item xs={12} sm={6} md={4} key={product._id}>
+                  <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                     <CardMedia
                       component="img"
                       height="200"
-                      image={product.image}
+                      image={product.images && product.images[0] ? product.images[0] : 'https://via.placeholder.com/300x200'}
                       alt={product.name}
                       onError={(e) => {
                         e.target.src = 'https://via.placeholder.com/300x200?text=Ürün+Görseli';
                       }}
-                      sx={{ cursor: 'pointer' }}
-                      onClick={() => handleRent(product.id)}
                     />
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 8,
-                        right: 8,
-                        bgcolor: 'background.paper',
-                        borderRadius: '50%'
-                      }}
-                    >
-                      <IconButton
-                        onClick={() => handleFavoriteClick(product.id)}
-                        sx={{ color: isFavorite(product.id) ? 'error.main' : 'inherit' }}
-                      >
-                        {isFavorite(product.id) ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-                      </IconButton>
-                    </Box>
                     <CardContent sx={{ flexGrow: 1 }}>
-                      <Typography 
-                        gutterBottom 
-                        variant="h6" 
-                        component="h3"
-                        sx={{ cursor: 'pointer' }}
-                        onClick={() => handleRent(product.id)}
-                      >
+                      <Typography gutterBottom variant="h6" component="h2">
                         {product.name}
                       </Typography>
                       <Typography variant="body2" color="text.secondary" paragraph>
-                        {product.description}
+                        {product.description.length > 100 
+                          ? `${product.description.substring(0, 100)}...` 
+                          : product.description}
                       </Typography>
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                         <Typography variant="h6" color="primary" sx={{ mr: 1 }}>
-                          {product.price}
+                          {product.dailyPrice}₺/gün
                         </Typography>
                         <Chip
-                          label={product.condition}
-                          color={product.condition === 'Yeni' ? 'success' : 'default'}
+                          label={
+                            product.condition === 'new' ? 'Yeni' :
+                            product.condition === 'like-new' ? 'Sıfır Gibi' :
+                            product.condition === 'good' ? 'İyi' :
+                            product.condition === 'fair' ? 'Orta' : product.condition
+                          }
+                          color={
+                            product.condition === 'new' ? 'success' :
+                            product.condition === 'like-new' ? 'info' :
+                            product.condition === 'good' ? 'primary' : 'default'
+                          }
                           size="small"
                         />
                       </Box>
@@ -296,21 +340,23 @@ const Search = () => {
                           {product.location}
                         </Typography>
                       </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                        <Star sx={{ fontSize: 16, color: 'warning.main', mr: 0.5 }} />
-                        <Typography variant="body2" color="text.secondary">
-                          {product.rating} ({product.reviewCount} değerlendirme)
-                        </Typography>
-                      </Box>
+                      <Chip label={product.category} size="small" variant="outlined" />
+                    </CardContent>
+                    <CardActions sx={{ justifyContent: 'space-between', px: 2, pb: 2 }}>
                       <Button 
                         variant="contained" 
                         color="primary" 
-                        fullWidth
-                        onClick={() => handleRent(product.id)}
+                        onClick={() => handleRent(product._id)}
                       >
                         Kirala
                       </Button>
-                    </CardContent>
+                      <IconButton
+                        onClick={() => handleFavoriteClick(product._id)}
+                        sx={{ color: isFavorite(product._id) ? 'error.main' : 'inherit' }}
+                      >
+                        {isFavorite(product._id) ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                      </IconButton>
+                    </CardActions>
                   </Card>
                 </Grid>
               ))}

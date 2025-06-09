@@ -22,13 +22,13 @@ import {
   Logout as LogoutIcon,
   Login as LoginIcon,
   PersonAdd as PersonAddIcon,
+  Assignment as AssignmentIcon,
+  Message as MessageIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 
 const pages = [
-  { name: 'Anasayfa', path: '/' },
-  { name: 'Ürünler', path: '/products' },
-  { name: 'Arama', path: '/search' },
+  { name: 'Ürünler', path: '/categories' },
   { name: 'İletişim', path: '/contact' },
 ];
 
@@ -193,10 +193,22 @@ const Navbar = () => {
                   <FavoriteIcon />
                 </IconButton>
                 <IconButton
-                  onClick={() => navigate('/orders')}
-                  sx={{ color: 'white', mr: 2 }}
+                  onClick={() => navigate('/rental-history')}
+                  sx={{ color: 'white', mr: 1 }}
                 >
                   <ShoppingCartIcon />
+                </IconButton>
+                <IconButton
+                  onClick={() => navigate('/chat-list')}
+                  sx={{ color: 'white', mr: 1 }}
+                >
+                  <MessageIcon />
+                </IconButton>
+                <IconButton
+                  onClick={() => navigate('/rental-approvals')}
+                  sx={{ color: 'white', mr: 2 }}
+                >
+                  <AssignmentIcon />
                 </IconButton>
                 <Tooltip title="Hesap işlemleri">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
@@ -229,6 +241,24 @@ const Navbar = () => {
                       <PersonIcon fontSize="small" />
                     </ListItemIcon>
                     <Typography textAlign="center">Profilim</Typography>
+                  </MenuItem>
+                  <MenuItem onClick={() => {
+                    navigate('/chat-list');
+                    handleCloseUserMenu();
+                  }}>
+                    <ListItemIcon>
+                      <MessageIcon fontSize="small" />
+                    </ListItemIcon>
+                    <Typography textAlign="center">Mesajlarım</Typography>
+                  </MenuItem>
+                  <MenuItem onClick={() => {
+                    navigate('/rental-approvals');
+                    handleCloseUserMenu();
+                  }}>
+                    <ListItemIcon>
+                      <AssignmentIcon fontSize="small" />
+                    </ListItemIcon>
+                    <Typography textAlign="center">Kiralama Onayları</Typography>
                   </MenuItem>
                   <MenuItem onClick={() => {
                     navigate('/settings');

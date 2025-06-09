@@ -7,23 +7,41 @@
 const express = require('express');
 const router = express.Router();
 const { auth } = require('../middleware/auth');
-const { validate, rentalSchemas } = require('../middleware/validation');
 const rentalController = require('../controllers/rentalController');
 
+// ÖZEL ROUTE'LAR ÖNCE GELMELİ (parametreli route'lardan önce)
+
+// Mevcut kullanıcının kiralamalarını listele
+router.get('/my-rentals', auth, rentalController.getUserRentals);
+
+// Bekleyen kiralama taleplerini getir (ürün sahibi için)
+router.get('/pending-approvals', auth, rentalController.getPendingRentals);
+
+// PARAMETRELİ ROUTE'LAR
+
 // Kiralama talebi oluşturma
-router.post('/', auth, validate(rentalSchemas.create), rentalController.createRental);
+router.post('/', auth, rentalController.createRental);
 
 // Kiralama detayı
 router.get('/:id', auth, rentalController.getRentalById);
 
 // Kiralama güncelleme
-router.put('/:id', auth, validate(rentalSchemas.update), rentalController.updateRental);
+router.put('/:id', auth, rentalController.updateRental);
 
 // Kiralama iptal etme
 router.post('/:id/cancel', auth, rentalController.cancelRental);
 
 // Kiralama tamamlama
 router.post('/:id/complete', auth, rentalController.completeRental);
+
+// Kiralama talebini onayla
+router.post('/:id/approve', auth, rentalController.approveRental);
+
+// Kiralama talebini reddet
+router.post('/:id/reject', auth, rentalController.rejectRental);
+
+// Onaylanmış kiralamayı aktif hale getir
+router.post('/:id/activate', auth, rentalController.activateRental);
 
 // Kiralama değerlendirme ekleme
 router.post('/:id/review', auth, rentalController.addRentalReview);

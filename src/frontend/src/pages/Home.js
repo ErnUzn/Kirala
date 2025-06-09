@@ -14,6 +14,7 @@ import {
   InputBase,
   Divider,
   Stack,
+  CircularProgress,
 } from '@mui/material';
 import {
   LocationOn,
@@ -34,9 +35,6 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { styled } from '@mui/material/styles';
-
-// Ürün listesini import edelim
-import { products } from './Products';
 
 const HeroSection = styled(Box)(({ theme }) => ({
   background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
@@ -88,6 +86,32 @@ const Home = () => {
     const savedFavorites = localStorage.getItem('favorites');
     return savedFavorites ? JSON.parse(savedFavorites) : [];
   });
+  
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // API'den ürünleri çek
+  useEffect(() => {
+    const fetchProducts = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('http://localhost:5000/api/items');
+        if (!response.ok) {
+          throw new Error('Ürünler yüklenirken bir hata oluştu');
+        }
+        const data = await response.json();
+        setProducts(data);
+      } catch (err) {
+        setError(err.message);
+        console.error('Ürünler yüklenirken hata:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('favorites', JSON.stringify(favorites));
@@ -115,17 +139,17 @@ const Home = () => {
 
   const handleSearch = (event) => {
     if (event.key === 'Enter') {
-      navigate(`/search?q=${event.target.value}`);
+      navigate(`/categories?q=${event.target.value}`);
     }
   };
 
   const categories = [
-    { title: 'Fotoğraf', icon: <CameraAlt sx={{ fontSize: 40 }} />, color: '#2196F3', index: 0 },
-    { title: 'Video', icon: <Videocam sx={{ fontSize: 40 }} />, color: '#F50057', index: 1 },
-    { title: 'Ses', icon: <Headphones sx={{ fontSize: 40 }} />, color: '#00BFA5', index: 2 },
-    { title: 'Işık', icon: <WbIridescent sx={{ fontSize: 40 }} />, color: '#FFB300', index: 3 },
-    { title: 'Kamp', icon: <OutdoorGrill sx={{ fontSize: 40 }} />, color: '#43A047', index: 4 },
-    { title: 'Telefon', icon: <Phone sx={{ fontSize: 40 }} />, color: '#7B1FA2', index: 5 },
+    { title: 'Elektronik', icon: <CameraAlt sx={{ fontSize: 40 }} />, color: '#2196F3', index: 1 },
+    { title: 'Ulaşım', icon: <Videocam sx={{ fontSize: 40 }} />, color: '#F50057', index: 2 },
+    { title: 'Spor & Outdoor', icon: <OutdoorGrill sx={{ fontSize: 40 }} />, color: '#00BFA5', index: 3 },
+    { title: 'Müzik', icon: <Headphones sx={{ fontSize: 40 }} />, color: '#FFB300', index: 4 },
+    { title: 'Ev & Bahçe', icon: <WbIridescent sx={{ fontSize: 40 }} />, color: '#43A047', index: 7 },
+    { title: 'Aletler', icon: <Phone sx={{ fontSize: 40 }} />, color: '#7B1FA2', index: 8 },
   ];
 
   const features = [
@@ -135,17 +159,24 @@ const Home = () => {
     { icon: <ThumbUpAlt />, title: 'Kalite Garantisi', description: 'Test edilmiş ürünler' },
   ];
 
-  // Öne çıkan ürünler (Products.js'den alınan gerçek ürünler)
-  const featuredProducts = [
-    products.find(p => p.id === 1),  // DSLR Kamera
-    products.find(p => p.id === 8),  // Drone
-    products.find(p => p.id === 7),  // GoPro Kamera
-    products.find(p => p.id === 5),  // Video Kamera
-    products.find(p => p.id === 9),  // Işık Seti
-    products.find(p => p.id === 6),  // Gimbal
-    products.find(p => p.id === 13), // Ses Kayıt Cihazı
-    products.find(p => p.id === 19)  // Kamp Ocağı
-  ];
+  // Öne çıkan ürünler (API'den gelen ilk 8 ürün)
+  const featuredProducts = products.slice(0, 8);
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="50vh">
+        <Typography color="error">{error}</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -172,17 +203,36 @@ const Home = () => {
 
       <Container>
         {/* Kategoriler */}
-        <Typography variant="h4" component="h2" gutterBottom sx={{ mb: 4 }}>
+        <Typography variant="h4" component="h2" gutterBottom sx={{ textAlign: 'center', mb: 6, fontWeight: 'bold' }}>
           Kategoriler
         </Typography>
         <Grid container spacing={4} sx={{ mb: 8 }}>
           {categories.map((category) => (
             <Grid item xs={12} sm={6} md={4} lg={2} key={category.title}>
-              <CategoryCard onClick={() => navigate(`/categories?category=${category.index}`)}>
-                <Box sx={{ color: category.color, mb: 2 }}>
+              <CategoryCard 
+                onClick={() => navigate(`/categories?category=${category.index}`)}
+                sx={{
+                  minHeight: '160px',
+                  justifyContent: 'center',
+                  borderRadius: 3,
+                  boxShadow: 2,
+                  '&:hover': {
+                    boxShadow: 4,
+                    bgcolor: 'rgba(0, 0, 0, 0.02)'
+                  }
+                }}
+              >
+                <Box sx={{ 
+                  color: category.color, 
+                  mb: 2,
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'scale(1.1)'
+                  }
+                }}>
                   {category.icon}
                 </Box>
-                <Typography variant="h6" component="h3">
+                <Typography variant="h6" component="h3" sx={{ fontWeight: 600, textAlign: 'center' }}>
                   {category.title}
                 </Typography>
               </CategoryCard>
@@ -191,118 +241,202 @@ const Home = () => {
         </Grid>
 
         {/* Öne Çıkan Ürünler */}
-        <Container sx={{ mt: 8, mb: 8 }}>
-          <Typography variant="h4" gutterBottom>
+        <Box sx={{ mt: 8, mb: 8 }}>
+          <Typography variant="h4" gutterBottom sx={{ textAlign: 'center', mb: 6, fontWeight: 'bold' }}>
             Öne Çıkan Ürünler
           </Typography>
           <Grid container spacing={4}>
             {featuredProducts.map((product) => (
-              <Grid item xs={12} sm={6} md={3} key={product.id}>
-                <Card 
-                  sx={{ 
-                    height: '100%', 
-                    display: 'flex', 
-                    flexDirection: 'column',
-                    position: 'relative' 
-                  }}
-                >
+              <Grid item xs={12} sm={6} md={4} lg={3} key={product._id}>
+                <Card sx={{ 
+                  height: '100%',
+                  minHeight: '440px', 
+                  display: 'flex', 
+                  flexDirection: 'column',
+                  position: 'relative',
+                  borderRadius: 3,
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-8px)',
+                    boxShadow: 6
+                  }
+                }}>
+                  <Box sx={{ position: 'relative', height: 200, flexShrink: 0 }}>
                   <CardMedia
                     component="img"
                     height="200"
-                    image={product.image}
+                    image={product.images && product.images[0] ? product.images[0] : 'https://via.placeholder.com/300x200'}
                     alt={product.name}
-                    onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/300x200?text=Ürün+Görseli';
-                    }}
-                    sx={{ cursor: 'pointer' }}
-                    onClick={() => handleRent(product.id)}
+                      sx={{ 
+                        cursor: 'pointer',
+                        objectFit: 'cover',
+                        width: '100%',
+                        height: '100%'
+                      }}
+                      onClick={() => handleRent(product._id)}
                   />
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      bgcolor: 'background.paper',
-                      borderRadius: '50%'
-                    }}
-                  >
-                    <IconButton
-                      onClick={() => handleFavoriteClick(product.id)}
-                      sx={{ color: isFavorite(product.id) ? 'error.main' : 'inherit' }}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 8,
+                        right: 8,
+                        bgcolor: 'rgba(255, 255, 255, 0.9)',
+                        borderRadius: '50%',
+                        boxShadow: 1
+                      }}
                     >
-                      {isFavorite(product.id) ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-                    </IconButton>
+                      <IconButton 
+                        onClick={() => handleFavoriteClick(product._id)}
+                        sx={{ 
+                          color: isFavorite(product._id) ? 'error.main' : 'text.secondary',
+                          '&:hover': {
+                            bgcolor: 'rgba(255, 255, 255, 0.8)'
+                          }
+                        }}
+                      >
+                        {isFavorite(product._id) ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                      </IconButton>
+                    </Box>
+                    {product.condition === 'new' && (
+                      <Chip
+                        label="YENİ"
+                        color="success"
+                        size="small"
+                        sx={{
+                          position: 'absolute',
+                          top: 8,
+                          left: 8,
+                          fontWeight: 'bold',
+                          boxShadow: 1
+                        }}
+                      />
+                    )}
                   </Box>
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Typography gutterBottom variant="h6" component="h3">
+                  <CardContent sx={{ 
+                    flexGrow: 1, 
+                    p: 2.5,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'space-between'
+                  }}>
+                    <Box sx={{ flexGrow: 1 }}>
+                      <Typography 
+                        gutterBottom 
+                        variant="h6" 
+                        component="h3"
+                        sx={{
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                          lineHeight: 1.3,
+                          fontSize: '1.1rem',
+                          mb: 1
+                        }}
+                        onClick={() => handleRent(product._id)}
+                      >
                       {product.name}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary" paragraph>
-                      {product.description}
+                      <Typography 
+                        variant="body2" 
+                        color="text.secondary" 
+                        sx={{ 
+                          mb: 2,
+                          lineHeight: 1.4
+                        }}
+                      >
+                      {product.description.length > 100 
+                        ? `${product.description.substring(0, 100)}...` 
+                        : product.description}
                     </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <Typography variant="h6" color="primary" sx={{ mr: 1 }}>
-                        {product.price}
-                      </Typography>
-                      <Chip
-                        label={product.condition}
-                        color={product.condition === 'Yeni' ? 'success' : 'default'}
-                        size="small"
-                      />
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                      <LocationOn sx={{ fontSize: 16, mr: 0.5 }} />
-                      <Typography variant="body2" color="text.secondary">
+                    
+                    <Stack spacing={1.5} sx={{ mt: 'auto' }}>
+                      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.5 }}>
+                        <Chip 
+                          label={product.category} 
+                          size="small" 
+                          variant="outlined"
+                        />
+                        <Chip 
+                          label={product.condition === 'new' ? 'Yeni' : product.condition === 'good' ? 'İyi' : 'Kullanılmış'} 
+                          size="small" 
+                          color={product.condition === 'new' ? 'success' : product.condition === 'good' ? 'info' : 'default'}
+                        />
+                    </Stack>
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                      <LocationOn sx={{ fontSize: 16, mr: 0.5, color: 'text.secondary' }} />
+                        <Typography variant="body2" color="text.secondary" noWrap>
                         {product.location}
                       </Typography>
                     </Box>
-                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                      <Star sx={{ fontSize: 16, color: 'warning.main', mr: 0.5 }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {product.rating} ({product.reviewCount} değerlendirme)
-                      </Typography>
-                    </Box>
-                    <Button 
-                      variant="contained" 
-                      color="primary" 
-                      fullWidth
-                      onClick={() => handleRent(product.id)}
-                    >
-                      Kirala
-                    </Button>
+                      <Typography variant="h6" color="primary" sx={{ fontWeight: 'bold' }}>
+                      {product.dailyPrice}₺/gün
+                    </Typography>
+                      <Button 
+                        variant="contained" 
+                        fullWidth
+                        onClick={() => handleRent(product._id)}
+                        sx={{
+                          fontWeight: 'bold',
+                          borderRadius: 2,
+                          py: 1.2,
+                          textTransform: 'none',
+                          fontSize: '1rem'
+                        }}
+                      >
+                        Kirala
+                      </Button>
+                    </Stack>
                   </CardContent>
                 </Card>
               </Grid>
             ))}
           </Grid>
-        </Container>
+        </Box>
 
         {/* Özellikler */}
-        <Box sx={{ py: 8, bgcolor: 'grey.50', borderRadius: 2 }}>
-          <Container>
-            <Grid container spacing={4}>
-              {features.map((feature) => (
-                <Grid item xs={12} sm={6} md={3} key={feature.title}>
-                  <Stack alignItems="center" spacing={2}>
-                    <Box sx={{ 
-                      bgcolor: 'primary.main',
-                      color: 'white',
-                      p: 2,
-                      borderRadius: '50%',
-                    }}>
-                      {feature.icon}
-                    </Box>
-                    <Typography variant="h6" align="center">
-                      {feature.title}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" align="center">
-                      {feature.description}
-                    </Typography>
-                  </Stack>
-                </Grid>
-              ))}
-            </Grid>
-          </Container>
+        <Box sx={{ mt: 10, mb: 8, py: 6, bgcolor: 'grey.50', borderRadius: 4 }}>
+          <Typography variant="h4" gutterBottom sx={{ textAlign: 'center', mb: 6, fontWeight: 'bold' }}>
+            Neden Kirala?
+          </Typography>
+          <Grid container spacing={4}>
+            {features.map((feature, index) => (
+              <Grid item xs={12} sm={6} md={3} key={index}>
+                <Box sx={{ 
+                  textAlign: 'center',
+                  p: 3,
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 3,
+                  transition: 'transform 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    bgcolor: 'white',
+                    boxShadow: 2
+                  }
+                }}>
+                  <Box sx={{ 
+                    color: 'primary.main', 
+                    mb: 3,
+                    transition: 'transform 0.2s',
+                    '&:hover': {
+                      transform: 'scale(1.1)'
+                    }
+                  }}>
+                    {React.cloneElement(feature.icon, { sx: { fontSize: 56 } })}
+                  </Box>
+                  <Typography variant="h6" gutterBottom sx={{ fontWeight: 600, mb: 2 }}>
+                    {feature.title}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center' }}>
+                    {feature.description}
+                  </Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
         </Box>
       </Container>
     </Box>

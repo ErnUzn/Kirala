@@ -130,8 +130,11 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
 const menuItems = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
   { text: 'Ürün Yönetimi', icon: <InventoryIcon />, path: '/admin/products' },
-  { text: 'Sipariş Yönetimi', icon: <LocalShippingIcon />, path: '/admin/orders' },
+  { text: 'Kiralama Yönetimi', icon: <LocalShippingIcon />, path: '/admin/rentals' },
+  { text: 'Ödeme Yönetimi', icon: <PaymentIcon />, path: '/admin/payments' },
   { text: 'Kullanıcı Yönetimi', icon: <PeopleIcon />, path: '/admin/users' },
+  { text: 'Raporlar', icon: <AssessmentIcon />, path: '/admin/reports' },
+  { text: 'İçerik Yönetimi', icon: <ArticleIcon />, path: '/admin/content' },
   { text: 'Ayarlar', icon: <SettingsIcon />, path: '/admin/settings' },
 ];
 
@@ -175,8 +178,20 @@ const AdminLayout = ({ children }) => {
   };
 
   const handleLogout = () => {
-    // TODO: Çıkış işlemleri
-    navigate('/admin');
+    // Kullanıcı verilerini localStorage'dan temizle
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('adminToken');
+    
+    // Kullanıcı durumu değişikliğini bildir
+    window.dispatchEvent(new Event('userStateChange'));
+    
+    // Ana sayfa giriş sayfasına yönlendir
+    navigate('/login');
+    
+    // Menu'yu kapat
+    handleMenuClose();
   };
 
   const handleThemeChange = () => {

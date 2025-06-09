@@ -1,29 +1,33 @@
-const Item = require('../models/item');
+const Item = require('../models/Item');
 const { validationResult } = require('express-validator');
+const mongoose = require('mongoose');
 
 // Ürün oluştur
 exports.createItem = async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { name, description, price, category, stock, image, location, condition } = req.body;
+    const { name, description, category, price, dailyPrice, weeklyPrice, monthlyPrice, condition, location, features, images, ownerInfo } = req.body;
     
-    const newItem = await Item.create({
+    const newItem = new Item({
       name,
       description,
-      price,
       category,
-      stock,
-      image,
-      location,
+      price,
+      dailyPrice,
+      weeklyPrice,
+      monthlyPrice,
       condition,
-      rating: 0,
-      reviewCount: 0
+      location,
+      features,
+      images,
+      owner: req.user?._id || new mongoose.Types.ObjectId(), // Geçici owner
+      ownerInfo: ownerInfo || {
+        userId: req.user?._id?.toString() || `user_${Date.now()}`,
+        userName: 'Kullanıcı',
+        userEmail: ''
+      }
     });
 
+    await newItem.save();
     res.status(201).json(newItem);
   } catch (error) {
     console.error('Ürün oluşturma hatası:', error);
@@ -31,21 +35,55 @@ exports.createItem = async (req, res) => {
   }
 };
 
+// Kullanıcının kendi ürünlerini getir
+exports.getMyItems = async (req, res) => {
+  try {
+    // Auth middleware'den gelen user ID'sini kullan
+    const userId = req.user?._id || req.query.userId;
+    
+    console.log('🔍 getMyItems çağrıldı:');
+    console.log('- req.user._id:', req.user?._id);
+    console.log('- req.query.userId:', req.query.userId);
+    console.log('- Kullanılacak userId:', userId);
+    
+    if (!userId) {
+      return res.status(400).json({ message: 'Kullanıcı ID gereklidir' });
+    }
+
+    // Önce ownerInfo.userId ile ara, sonra owner field'ı ile ara
+    let items = await Item.find({ 'ownerInfo.userId': userId }).sort({ createdAt: -1 });
+    console.log('- ownerInfo.userId ile bulunan ürün sayısı:', items.length);
+    
+    // Eğer ownerInfo.userId ile bulunamazsa, owner field'ı ile ara (ObjectId olarak)
+    if (items.length === 0) {
+      try {
+        items = await Item.find({ owner: userId }).sort({ createdAt: -1 });
+        console.log('- owner field ile bulunan ürün sayısı:', items.length);
+      } catch (error) {
+        console.log('- ObjectId cast hatası:', error.message);
+        // ObjectId cast hatası durumunda boş array döndür
+        items = [];
+      }
+    }
+    
+    console.log('- Toplam döndürülen ürün sayısı:', items.length);
+    res.json(items);
+    
+  } catch (error) {
+    console.error('Kullanıcı ürünleri getirme hatası:', error);
+    res.status(500).json({ message: 'Ürünler getirilirken bir hata oluştu' });
+  }
+};
+
 // Ürün güncelle
 exports.updateItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, description, price, category, stock, image, location, condition } = req.body;
+    const updateData = req.body;
 
-    const updatedItem = await Item.update(id, {
-      name,
-      description,
-      price,
-      category,
-      stock,
-      image,
-      location,
-      condition
+    const updatedItem = await Item.findByIdAndUpdate(id, updateData, { 
+      new: true, 
+      runValidators: true 
     });
 
     if (!updatedItem) {
@@ -63,7 +101,7 @@ exports.updateItem = async (req, res) => {
 exports.deleteItem = async (req, res) => {
   try {
     const { id } = req.params;
-    const deletedItem = await Item.delete(id);
+    const deletedItem = await Item.findByIdAndDelete(id);
 
     if (!deletedItem) {
       return res.status(404).json({ message: 'Ürün bulunamadı' });
@@ -79,7 +117,7 @@ exports.deleteItem = async (req, res) => {
 // Tüm ürünleri getir
 exports.getAllItems = async (req, res) => {
   try {
-    const items = await Item.findAll();
+    const items = await Item.find({ status: 'available' }).sort({ createdAt: -1 });
     res.json(items);
   } catch (error) {
     console.error('Ürünleri getirme hatası:', error);
